@@ -92,7 +92,18 @@ MavlinkOrbSubscription::update(uint64_t *time, void *data)
 		time_topic = 0;
 	}
 
+<<<<<<< HEAD
 	if (update(data)) {
+=======
+	if (orb_copy(_topic, _fd, data)) {
+		if (data != nullptr) {
+			/* error copying topic data */
+			memset(data, 0, _topic->o_size);
+		}
+		return false;
+
+	} else {
+>>>>>>> MAVLink: Use valid flag to initialize fields
 		/* data copied successfully */
 
 		if (time_topic == 0 || (time_topic != *time)) {
