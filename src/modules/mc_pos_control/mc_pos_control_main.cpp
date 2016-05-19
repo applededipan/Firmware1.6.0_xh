@@ -2158,11 +2158,49 @@ MulticopterPositionControl::task_main()
 					_att_sp.roll_body = -atan2f(z_roll_pitch_sp(1), z_roll_pitch_sp(2));
 				}
 
+<<<<<<< HEAD
 				/* copy quaternion setpoint to attitude setpoint topic */
 				matrix::Quatf q_sp = matrix::Eulerf(_att_sp.roll_body, _att_sp.pitch_body, _att_sp.yaw_body);
 				memcpy(&_att_sp.q_d[0], q_sp.data(), sizeof(_att_sp.q_d));
 				_att_sp.q_d_valid = true;
 			}
+=======
+			// construct attitude setpoint rotation matrix. modify the setpoints for roll
+			// and pitch such that they reflect the user's intention even if a yaw error
+			// (yaw_sp - yaw) is present. In the presence of a yaw error constructing a rotation matrix
+			// from the pure euler angle setpoints will lead to unexpected attitude behaviour from
+			// the user's view as the euler angle sequence uses the  yaw setpoint and not the current
+			// heading of the vehicle.
+
+			// calculate our current yaw error
+			float yaw_error = _wrap_pi(_att_sp.yaw_body - _yaw);
+
+			// compute the vector obtained by rotating a z unit vector by the rotation
+			// given by the roll and pitch commands of the user
+			math::Vector<3> zB = {0, 0, 1};
+			math::Matrix<3,3> R_sp_roll_pitch;
+			R_sp_roll_pitch.from_euler(_att_sp.roll_body, _att_sp.pitch_body, 0);
+			math::Vector<3> z_roll_pitch_sp = R_sp_roll_pitch * zB;
+
+
+			// transform the vector into a new frame which is rotated around the z axis
+			// by the current yaw error. this vector defines the desired tilt when we look
+			// into the direction of the desired heading
+			math::Matrix<3,3> R_yaw_correction;
+			R_yaw_correction.from_euler(0.0f, 0.0f, -yaw_error);
+			z_roll_pitch_sp = R_yaw_correction * z_roll_pitch_sp;
+
+			// use the formula z_roll_pitch_sp = R_tilt * [0;0;1]
+			// to calculate the new desired roll and pitch angles
+			// R_tilt can be written as a function of the new desired roll and pitch
+			// angles. we get three equations and have to solve for 2 unknowns
+			float pitch_new = asinf(z_roll_pitch_sp(0));
+			float roll_new = -atan2f(z_roll_pitch_sp(1), z_roll_pitch_sp(2));
+
+			R_sp.from_euler(roll_new, pitch_new, _att_sp.yaw_body);
+
+			memcpy(&_att_sp.R_body[0], R_sp.data, sizeof(_att_sp.R_body));
+>>>>>>> WIP: Manual attitude setpoint for large heading errors (#4564)
 
 			if (_manual.gear_switch == manual_control_setpoint_s::SWITCH_POS_ON &&
 			    !_vehicle_land_detected.landed) {
