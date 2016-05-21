@@ -417,7 +417,11 @@ int AttitudePositionEstimatorEKF::check_filter_state()
 
 		// Do not warn about accel offset if we have no position updates
 		if (!(warn_index == 5 && _ekf->staticMode)) {
+<<<<<<< HEAD:src/examples/ekf_att_pos_estimator/ekf_att_pos_estimator_main.cpp
 			mavlink_log_critical(&_mavlink_log_pub, "[ekf check] %s", feedback[warn_index]);
+=======
+			mavlink_and_console_log_critical(&_mavlink_log_pub, "[ekf check] %s", feedback[warn_index]);
+>>>>>>> EKF1: Simplify output:src/modules/ekf_att_pos_estimator/ekf_att_pos_estimator_main.cpp
 		}
 	}
 
