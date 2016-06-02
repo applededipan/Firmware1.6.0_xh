@@ -172,7 +172,8 @@ stm32_boardinitialize(void)
  ****************************************************************************/
 
 static struct spi_dev_s *spi1;
-static struct spi_dev_s *spi2;
+//FRAM SPI 4
+static struct spi_dev_s *spi4;
 static struct sdio_dev_s *sdio;
 
 #include <math.h>
@@ -183,19 +184,32 @@ __EXPORT int nsh_archinitialize(void)
 	/* configure ADC pins */
 	px4_arch_configgpio(GPIO_ADC1_IN2);	/* BATT_VOLTAGE_SENS */
 	px4_arch_configgpio(GPIO_ADC1_IN3);	/* BATT_CURRENT_SENS */
-	px4_arch_configgpio(GPIO_ADC1_IN4);	/* VDD_5V_SENS */
-	px4_arch_configgpio(GPIO_ADC1_IN11);	/* RSSI analog in */
+	px4_arch_configgpio(GPIO_ADC1_IN4);	/* ADI_Y_SENS */
+	px4_arch_configgpio(GPIO_ADC1_IN11);	/* VDD_5V_SENS */
+	// stm32_configgpio(GPIO_ADC1_IN10);	/* used by VBUS valid */
+	// stm32_configgpio(GPIO_ADC1_IN11);	/* unused */
+	// stm32_configgpio(GPIO_ADC1_IN12);	/* used by MPU6000 CS */
+	px4_arch_configgpio(GPIO_ADC1_IN13);	/* FMU_AUX_ADC_1 */
+	px4_arch_configgpio(GPIO_ADC1_IN14);	/* ADI_X_SENS */
+	px4_arch_configgpio(GPIO_ADC1_IN15);	/* ADI_Z_SENS */
 
 	/* configure power supply control/sense pins */
-	px4_arch_configgpio(GPIO_PERIPH_3V3_EN);
-	px4_arch_configgpio(GPIO_VDD_BRICK_VALID);
-
-	px4_arch_configgpio(GPIO_SBUS_INV);
-	px4_arch_configgpio(GPIO_8266_GPIO0);
-	px4_arch_configgpio(GPIO_SPEKTRUM_PWR_EN);
-	px4_arch_configgpio(GPIO_8266_PD);
-	px4_arch_configgpio(GPIO_8266_RST);
-	px4_arch_configgpio(GPIO_BTN_SAFETY);
+	//stm32_configgpio(GPIO_PERIPH_3V3_EN);
+	stm32_configgpio(GPIO_VDD_BRICK_VALID);
+  //not use this
+	//stm32_configgpio(GPIO_SBUS_INV);
+	//stm32_configgpio(GPIO_8266_GPIO0);
+	//conflict FRAM CS
+	//stm32_configgpio(GPIO_SPEKTRUM_PWR_EN);
+	//stm32_configgpio(GPIO_8266_PD);
+	//stm32_configgpio(GPIO_8266_RST);
+	//stm32_configgpio(GPIO_BTN_SAFETY);
+		
+//add Payload and servo out 
+	px4_arch_configgpio(GPIO_VDD_5V_PAYLOAD_EN);
+	stm32_gpiowrite(GPIO_VDD_5V_PAYLOAD_EN, 0);
+	px4_arch_configgpio(GPIO_VDD_5V_SERVO_EN);
+	stm32_gpiowrite(GPIO_VDD_5V_SERVO_EN, 0);
 
 #ifdef GPIO_RC_OUT
 	px4_arch_configgpio(GPIO_RC_OUT);      /* Serial RC output pin */
@@ -268,7 +282,7 @@ __EXPORT int nsh_archinitialize(void)
 
 	/* Get the SPI port for the FRAM */
 
-	spi2 = px4_spibus_initialize(2);
+	spi2 = px4_spibus_initialize(4);
 
 	if (!spi2) {
 		message("[boot] FAILED to initialize SPI port 2\n");
@@ -281,11 +295,11 @@ __EXPORT int nsh_archinitialize(void)
 	 */
 
 	// XXX start with 10.4 MHz and go up to 20 once validated
-	SPI_SETFREQUENCY(spi2, 20 * 1000 * 1000);
-	SPI_SETBITS(spi2, 8);
-	SPI_SETMODE(spi2, SPIDEV_MODE3);
-	SPI_SELECT(spi2, SPIDEV_FLASH, false);
-	SPI_SELECT(spi2, PX4_SPIDEV_BARO, false);
+	SPI_SETFREQUENCY(spi4, 20 * 1000 * 1000);
+	SPI_SETBITS(spi4, 8);
+	SPI_SETMODE(spi4, SPIDEV_MODE3);
+	SPI_SELECT(spi4, SPIDEV_FLASH, false);
+	//SPI_SELECT(spi2, PX4_SPIDEV_BARO, false);
 
 #ifdef CONFIG_MMCSD
 	/* First, get an instance of the SDIO interface */
