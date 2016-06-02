@@ -169,17 +169,25 @@ stm32_boardinitialize(void)
 	stm32_configgpio(GPIO_ADC1_IN3);	/* BATT_CURRENT_SENS */
 	stm32_configgpio(GPIO_ADC1_IN4);	/* VDD_5V_SENS */
 	stm32_configgpio(GPIO_ADC1_IN11);	/* RSSI analog in */
-
+	stm32_configgpio(GPIO_ADC1_IN13);	/* FMU_AUX_ADC_1 */
+	stm32_configgpio(GPIO_ADC1_IN14);	/* ADI_X_SENS */
+	stm32_configgpio(GPIO_ADC1_IN15);	/* ADI_Z_SENS */
 	/* configure power supply control/sense pins */
-	stm32_configgpio(GPIO_PERIPH_3V3_EN);
+	//stm32_configgpio(GPIO_PERIPH_3V3_EN);
 	stm32_configgpio(GPIO_VDD_BRICK_VALID);
 
-	stm32_configgpio(GPIO_SBUS_INV);
-	stm32_configgpio(GPIO_8266_GPIO0);
-	stm32_configgpio(GPIO_SPEKTRUM_PWR_EN);
-	stm32_configgpio(GPIO_8266_PD);
-	stm32_configgpio(GPIO_8266_RST);
-	stm32_configgpio(GPIO_BTN_SAFETY);
+	//stm32_configgpio(GPIO_SBUS_INV);
+	//stm32_configgpio(GPIO_8266_GPIO0);
+	//stm32_configgpio(GPIO_SPEKTRUM_PWR_EN);
+	//stm32_configgpio(GPIO_8266_PD);
+	//stm32_configgpio(GPIO_8266_RST);
+	//stm32_configgpio(GPIO_BTN_SAFETY);
+/add Payload and servo out 
+	stm32_configgpio(GPIO_VDD_5V_PAYLOAD_EN);
+	stm32_gpiowrite(GPIO_VDD_5V_PAYLOAD_EN, 0);
+	stm32_configgpio(GPIO_VDD_5V_SERVO_EN);
+	stm32_gpiowrite(GPIO_VDD_5V_SERVO_EN, 0);
+
 
 #ifdef GPIO_RC_OUT
 	stm32_configgpio(GPIO_RC_OUT);      /* Serial RC output pin */
@@ -227,7 +235,8 @@ stm32_boardinitialize(void)
  ****************************************************************************/
 
 static struct spi_dev_s *spi1;
-static struct spi_dev_s *spi2;
+//FRAM SPI 4
+static struct spi_dev_s *spi4;
 static struct sdio_dev_s *sdio;
 
 __EXPORT int board_app_initialize(uintptr_t arg)
@@ -437,7 +446,7 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 
 	/* Get the SPI port for the FRAM */
 
-	spi2 = stm32_spibus_initialize(2);
+	spi2 = stm32_spibus_initialize(4);
 
 	if (!spi2) {
 		message("[boot] FAILED to initialize SPI port 2\n");
@@ -450,11 +459,11 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	 */
 
 	// XXX start with 10.4 MHz and go up to 20 once validated
-	SPI_SETFREQUENCY(spi2, 20 * 1000 * 1000);
-	SPI_SETBITS(spi2, 8);
-	SPI_SETMODE(spi2, SPIDEV_MODE3);
-	SPI_SELECT(spi2, SPIDEV_FLASH, false);
-	SPI_SELECT(spi2, PX4_SPIDEV_BARO, false);
+	SPI_SETFREQUENCY(spi4, 20 * 1000 * 1000);
+	SPI_SETBITS(spi4, 8);
+	SPI_SETMODE(spi4, SPIDEV_MODE3);
+	SPI_SELECT(spi4, SPIDEV_FLASH, false);
+	//SPI_SELECT(spi2, PX4_SPIDEV_BARO, false);
 
 #ifdef CONFIG_MMCSD
 	/* First, get an instance of the SDIO interface */
