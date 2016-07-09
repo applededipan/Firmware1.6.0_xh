@@ -107,3 +107,26 @@ PARAM_DEFINE_INT32(PWM_AUX_REV5, 0);
  * @group PWM Outputs
  */
 PARAM_DEFINE_INT32(PWM_AUX_REV6, 0);
+
+/**
+ * Invert direction of aux output channel 7
+ *
+ * Set to 1 to invert the channel, 0 for default direction.
+ *
+ * @reboot_required true
+ * @boolean
+ * @group PWM Outputs
+ */
+PARAM_DEFINE_INT32(PWM_AUX_REV7, 0);
+
+/**
+ * Invert direction of aux output channel 8
+ *
+ * Set to 1 to invert the channel, 0 for default direction.
+ *
+ * @reboot_required true
+ * @boolean
+ * @group PWM Outputs
+ */
+PARAM_DEFINE_INT32(PWM_AUX_REV8, 0);
+
