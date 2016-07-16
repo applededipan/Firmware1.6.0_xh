@@ -282,9 +282,9 @@ __EXPORT int nsh_archinitialize(void)
 
 	/* Get the SPI port for the FRAM */
 
-	spi2 = px4_spibus_initialize(4);
+	spi4 = px4_spibus_initialize(4);
 
-	if (!spi2) {
+	if (!spi4) {
 		message("[boot] FAILED to initialize SPI port 2\n");
 		up_ledon(LED_RED);
 		return -ENODEV;

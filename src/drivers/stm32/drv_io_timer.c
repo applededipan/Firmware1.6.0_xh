@@ -111,7 +111,7 @@
 #define CCMR_C1_PWMIN_INIT 0 // TBD
 
 //												 				  NotUsed   PWMOut  PWMIn Capture
-io_timer_channel_allocation_t channel_allocations[IOTimerChanModeSize] = { UINT8_MAX,   0  ,  0   ,  0 };
+io_timer_channel_allocation_t channel_allocations[IOTimerChanModeSize] = { UINT16_MAX,   0  ,  0   ,  0 };
 
 typedef uint8_t io_timer_allocation_t; /* big enough to hold MAX_IO_TIMERS */
 
@@ -278,7 +278,7 @@ int io_timer_is_channel_free(unsigned channel)
 int io_timer_validate_channel_index(unsigned channel)
 {
 	int rv = -EINVAL;
-
+	
 	if (channel < MAX_TIMER_IO_CHANNELS && timer_io_channels[channel].timer_channel != 0) {
 
 		unsigned timer = timer_io_channels[channel].timer_index;
@@ -291,7 +291,7 @@ int io_timer_validate_channel_index(unsigned channel)
 			rv = 0;
 		}
 	}
-
+	//printf("channel:%d,rv:%d\n",channel,rv);
 	return rv;
 }
 

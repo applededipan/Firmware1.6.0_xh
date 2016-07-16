@@ -124,6 +124,7 @@ public:
 		MODE_4PWM,
 		MODE_6PWM,
 		MODE_8PWM,
+		MODE_12PWM,
 		MODE_4CAP,
 		MODE_5CAP,
 		MODE_6CAP,
@@ -612,7 +613,18 @@ PX4FMU::set_mode(Mode mode)
 		_pwm_initialized = false;
 		break;
 #endif
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 12
 
+	case MODE_12PWM: // Brainybee PWMs as 12 PWM outs
+		DEVICE_DEBUG("MODE_12PWM");
+		/* default output rates */
+		_pwm_default_rate = 50;
+		_pwm_alt_rate = 50;
+		_pwm_alt_rate_channels = 0;
+		_pwm_mask = 0x0fff;
+		_pwm_initialized = false;
+		break;
+#endif
 	case MODE_NONE:
 		DEVICE_DEBUG("MODE_NONE");
 
@@ -1076,7 +1088,10 @@ PX4FMU::cycle()
 			case MODE_8PWM:
 				num_outputs = 8;
 				break;
-
+			
+			case MODE_12PWM:
+				num_outputs=12;
+				break;
 			default:
 				num_outputs = 0;
 				break;
@@ -1615,6 +1630,10 @@ PX4FMU::ioctl(file *filp, int cmd, unsigned long arg)
 #if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 8
 	case MODE_8PWM:
 #endif
+//12pwm
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 12
+	case MODE_12PWM:
+#endif
 		ret = pwm_ioctl(filp, cmd, arg);
 		break;
 
@@ -1880,6 +1899,19 @@ PX4FMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 			arg = (unsigned long)&pwm;
 			break;
 		}
+//12 pwm
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 12
+
+	case PWM_SERVO_SET(11):
+	case PWM_SERVO_SET(10):
+	case PWM_SERVO_SET(9):
+	case PWM_SERVO_SET(8):
+		if (_mode < MODE_12PWM) {
+			ret = -EINVAL;
+			break;
+		}
+
+#endif
 
 #if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 8
 
@@ -1928,6 +1960,19 @@ PX4FMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 		}
 
 		break;
+//12pwm
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 12
+
+	case PWM_SERVO_GET(11):
+	case PWM_SERVO_GET(10):
+	case PWM_SERVO_GET(9):
+	case PWM_SERVO_GET(8):
+		if (_mode < MODE_12PWM) {
+			ret = -EINVAL;
+			break;
+		}
+
+#endif
 
 #if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 8
 
@@ -1983,12 +2028,25 @@ PX4FMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 	case PWM_SERVO_GET_RATEGROUP(6):
 	case PWM_SERVO_GET_RATEGROUP(7):
 #endif
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 12
+	case PWM_SERVO_GET_RATEGROUP(8):
+	case PWM_SERVO_GET_RATEGROUP(9):
+	case PWM_SERVO_GET_RATEGROUP(10):
+	case PWM_SERVO_GET_RATEGROUP(11):
+#endif
 		*(uint32_t *)arg = up_pwm_servo_get_rate_group(cmd - PWM_SERVO_GET_RATEGROUP(0));
 		break;
 
 	case PWM_SERVO_GET_COUNT:
 	case MIXERIOCGETOUTPUTCOUNT:
 		switch (_mode) {
+
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 12
+
+		case MODE_12PWM:
+			*(unsigned *)arg = 12;
+			break;
+#endif
 
 #if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 8
 
@@ -2072,6 +2130,13 @@ PX4FMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 				break;
 #endif
 
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >=12
+
+			case 12:
+				set_mode(MODE_12PWM);
+				break;
+#endif
+
 			default:
 				ret = -EINVAL;
 				break;
@@ -2116,6 +2181,10 @@ PX4FMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 
 			case PWM_SERVO_MODE_8PWM:
 				ret = set_mode(MODE_8PWM);
+				break;
+			
+			case PWM_SERVO_MODE_12PWM:
+				ret = set_mode(MODE_12PWM);
 				break;
 
 			case PWM_SERVO_MODE_4CAP:
@@ -2253,7 +2322,7 @@ ssize_t
 PX4FMU::write(file *filp, const char *buffer, size_t len)
 {
 	unsigned count = len / 2;
-	uint16_t values[8];
+	uint16_t values[12];
 
 	if (count > BOARD_HAS_PWM) {
 		// we have at most BOARD_HAS_PWM outputs
@@ -2678,6 +2747,10 @@ fmu_new_mode(PortMode new_mode)
 #endif
 #if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM == 8
 		servo_mode = PX4FMU::MODE_8PWM;
+#endif
+
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM == 12
+		servo_mode = PX4FMU::MODE_12PWM;
 #endif
 		break;
 
