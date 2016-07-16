@@ -169,3 +169,47 @@ PARAM_DEFINE_FLOAT(PWM_AUX_TRIM5, 0);
  */
 PARAM_DEFINE_FLOAT(PWM_AUX_TRIM6, 0);
 
+/**
+ * Invert direction of aux output channel 9
+ *
+ * Set to 1 to invert the channel, 0 for default direction.
+ *
+ * @reboot_required true
+ * @boolean
+ * @group PWM Outputs
+ */
+PARAM_DEFINE_INT32(PWM_AUX_REV9, 0);
+
+/**
+ * Invert direction of aux output channel 10
+ *
+ * Set to 1 to invert the channel, 0 for default direction.
+ *
+ * @reboot_required true
+ * @boolean
+ * @group PWM Outputs
+ */
+PARAM_DEFINE_INT32(PWM_AUX_REV10, 0);
+
+/**
+ * Invert direction of aux output channel 11
+ *
+ * Set to 1 to invert the channel, 0 for default direction.
+ *
+ * @reboot_required true
+ * @boolean
+ * @group PWM Outputs
+ */
+PARAM_DEFINE_INT32(PWM_AUX_REV11, 0);
+
+/**
+ * Invert direction of aux output channel 10
+ *
+ * Set to 1 to invert the channel, 0 for default direction.
+ *
+ * @reboot_required true
+ * @boolean
+ * @group PWM Outputs
+ */
+PARAM_DEFINE_INT32(PWM_AUX_REV12, 0);
+

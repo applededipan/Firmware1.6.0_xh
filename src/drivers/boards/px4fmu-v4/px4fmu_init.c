@@ -448,7 +448,7 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 
 	spi2 = stm32_spibus_initialize(4);
 
-	if (!spi2) {
+	if (!spi4) {
 		message("[boot] FAILED to initialize SPI port 2\n");
 		board_autoled_on(LED_RED);
 		return -ENODEV;
