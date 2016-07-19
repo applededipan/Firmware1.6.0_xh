@@ -212,8 +212,8 @@ __EXPORT int nsh_archinitialize(void)
 	stm32_gpiowrite(GPIO_VDD_5V_SERVO_EN, 0);
 
 #ifdef GPIO_RC_OUT
-	px4_arch_configgpio(GPIO_RC_OUT);      /* Serial RC output pin */
-	px4_arch_gpiowrite(GPIO_RC_OUT, 1);    /* set it high to pull RC input up */
+	//px4_arch_configgpio(GPIO_RC_OUT);      /* Serial RC output pin */
+	//px4_arch_gpiowrite(GPIO_RC_OUT, 1);    /* set it high to pull RC input up */
 #endif
 
 	/* configure the GPIO pins to outputs and keep them low */

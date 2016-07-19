@@ -908,7 +908,7 @@ void PX4FMU::rc_io_invert(bool invert)
 
 	if (!invert) {
 		// set FMU_RC_OUTPUT high to pull RC_INPUT up
-		px4_arch_gpiowrite(GPIO_RC_OUT, 1);
+		//px4_arch_gpiowrite(GPIO_RC_OUT, 1);
 	}
 
 #endif
@@ -964,7 +964,7 @@ PX4FMU::cycle()
 		sbus_config(_rcs_fd, false);
 #ifdef GPIO_PPM_IN
 		// disable CPPM input by mapping it away from the timer capture input
-		px4_arch_unconfiggpio(GPIO_PPM_IN);
+		//px4_arch_unconfiggpio(GPIO_PPM_IN);
 #endif
 #endif
 		param_find("MOT_SLEW_MAX");
@@ -1481,7 +1481,7 @@ PX4FMU::cycle()
 		if (_rc_scan_begin == 0) {
 			_rc_scan_begin = _cycle_timestamp;
 			// Configure timer input pin for CPPM
-			px4_arch_configgpio(GPIO_PPM_IN);
+			//px4_arch_configgpio(GPIO_PPM_IN);
 			rc_io_invert(false);
 
 		} else if (_rc_scan_locked
@@ -1502,7 +1502,7 @@ PX4FMU::cycle()
 
 		} else {
 			// disable CPPM input by mapping it away from the timer capture input
-			px4_arch_unconfiggpio(GPIO_PPM_IN);
+			//px4_arch_unconfiggpio(GPIO_PPM_IN);
 			// Scan the next protocol
 			set_rc_scan_state(RC_SCAN_SBUS);
 		}
