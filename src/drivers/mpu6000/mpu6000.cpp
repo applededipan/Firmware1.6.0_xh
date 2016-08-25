@@ -629,8 +629,13 @@ MPU6000::init()
 	unsigned dummy;
 	use_i2c(_interface->ioctl(MPUIOCGIS_I2C, dummy));
 #endif
+<<<<<<< HEAD
 
 
+=======
+
+
+>>>>>>> Fix MPU6K sampling
 	/* probe again to get our settings that are based on the device type */
 
 	int ret = probe();
@@ -751,8 +756,19 @@ int MPU6000::reset()
 		write_checked_reg(MPUREG_PWR_MGMT_1, MPU_CLK_SEL_PLLGYROZ);
 		up_udelay(1000);
 
+<<<<<<< HEAD
 		// Enable I2C bus or Disable I2C bus (recommended on data sheet)
 		write_checked_reg(MPUREG_USER_CTRL, is_i2c() ? 0 : BIT_I2C_IF_DIS);
+=======
+		if (is_i2c()) {
+			// Enable I2C bus (recommended on datasheet)
+			write_checked_reg(MPUREG_USER_CTRL, 0);
+
+		} else {
+			// Disable I2C bus (recommended on datasheet)
+			write_checked_reg(MPUREG_USER_CTRL, BIT_I2C_IF_DIS);
+		}
+>>>>>>> Fix MPU6K sampling
 
 		px4_leave_critical_section(state);
 
@@ -1727,7 +1743,11 @@ MPU6000::start()
 	_accel_reports->flush();
 	_gyro_reports->flush();
 
+<<<<<<< HEAD
 	if (!is_i2c()) {
+=======
+	if (_use_hrt) {
+>>>>>>> Fix MPU6K sampling
 		/* start polling at the specified rate */
 		hrt_call_every(&_call,
 			       1000,
@@ -1746,7 +1766,11 @@ void
 MPU6000::stop()
 {
 
+<<<<<<< HEAD
 	if (!is_i2c()) {
+=======
+	if (_use_hrt) {
+>>>>>>> Fix MPU6K sampling
 		hrt_cancel(&_call);
 
 	} else {
@@ -2305,6 +2329,52 @@ void	usage();
  * find a bus structure for a busid
  */
 struct mpu6000_bus_option &find_bus(enum MPU6000_BUS busid)
+<<<<<<< HEAD
+{
+	for (uint8_t i = 0; i < NUM_BUS_OPTIONS; i++) {
+		if ((busid == MPU6000_BUS_ALL ||
+		     busid == bus_options[i].busid) && bus_options[i].dev != NULL) {
+			return bus_options[i];
+		}
+	}
+
+	errx(1, "bus %u not started", (unsigned)busid);
+}
+
+/**
+ * start driver for a specific bus option
+ */
+bool
+start_bus(struct mpu6000_bus_option &bus, enum Rotation rotation, int range, int device_type, bool external)
+{
+	int fd = -1;
+
+	if (bus.dev != nullptr) {
+		warnx("%s SPI not available", external ? "External" : "Internal");
+		return false;
+	}
+
+	device::Device *interface = bus.interface_constructor(bus.busnum, device_type, external);
+
+	if (interface == nullptr) {
+		warnx("no device on bus %u", (unsigned)bus.busid);
+		return false;
+	}
+
+	if (interface->init() != OK) {
+		delete interface;
+		warnx("no device on bus %u", (unsigned)bus.busid);
+		return false;
+	}
+
+	bus.dev = new MPU6000(interface, bus.accelpath, bus.gyropath, rotation, device_type);
+
+	if (bus.dev == nullptr) {
+		delete interface;
+		return false;
+	}
+
+=======
 {
 	for (uint8_t i = 0; i < NUM_BUS_OPTIONS; i++) {
 		if ((busid == MPU6000_BUS_ALL ||
@@ -2349,6 +2419,7 @@ start_bus(struct mpu6000_bus_option &bus, enum Rotation rotation, int range, int
 		return false;
 	}
 
+>>>>>>> Fix MPU6K sampling
 	if (OK != bus.dev->init()) {
 		goto fail;
 	}
