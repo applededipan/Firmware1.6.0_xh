@@ -91,10 +91,10 @@ __EXPORT void stm32_spiinitialize(void)
 	px4_arch_configgpio(GPIO_DRDY_ICM_20608_G);
 #endif
 
-#ifdef CONFIG_STM32_SPI2
+//#ifdef CONFIG_STM32_SPI2
 	px4_arch_configgpio(GPIO_SPI_CS_FRAM);
 	px4_arch_gpiowrite(GPIO_SPI_CS_FRAM, 1);
-#endif
+//#endif
 
 }
 

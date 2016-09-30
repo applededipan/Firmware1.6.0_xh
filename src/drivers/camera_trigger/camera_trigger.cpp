@@ -62,6 +62,8 @@
 #include <uORB/topics/sensor_combined.h>
 #include <uORB/topics/vehicle_command.h>
 #include <uORB/topics/vehicle_local_position.h>
+#include <uORB/topics/vehicle_global_position.h> //added by dzp 2016/8/24
+#include <uORB/topics/camera_feedback.h>         //added by dzp 2016/8/24 added a topic
 #include <poll.h>
 #include <drivers/drv_gpio.h>
 #include <drivers/drv_hrt.h>
@@ -73,6 +75,7 @@
 #define TRIGGER_PIN_DEFAULT 1
 
 extern "C" __EXPORT int camera_trigger_main(int argc, char *argv[]);
+
 
 typedef enum {
 	CAMERA_INTERFACE_MODE_NONE = 0,
@@ -157,8 +160,14 @@ private:
 
 	int			_vcommand_sub;
 	int			_vlposition_sub;
+	int         _vgposition_sub;       //added by dzp 2016/8/24
+	int32_t  _lat;
+	int32_t  _lng;
 
 	orb_advert_t		_trigger_pub;
+	orb_advert_t		_feedback_pub; //added by dzp 2016/8/24
+
+	//struct camera_feedback_s	_report; //added by dzp 2016/8/24
 
 	param_t			_p_mode;
 	param_t			_p_activation_time;
@@ -227,7 +236,11 @@ CameraTrigger::CameraTrigger() :
 	_valid_position(false),
 	_vcommand_sub(-1),
 	_vlposition_sub(-1),
+	_vgposition_sub(-1),
+	_lat(0),
+	_lng(0),
 	_trigger_pub(nullptr),
+	_feedback_pub(nullptr),                             //added by dzp 2016/8/24
 	_camera_interface_mode(CAMERA_INTERFACE_MODE_RELAY),
 	_camera_interface(nullptr)
 {
@@ -269,6 +282,11 @@ CameraTrigger::CameraTrigger() :
 	struct camera_trigger_s	report = {};
 
 	_trigger_pub = orb_advertise(ORB_ID(camera_trigger), &report);
+	
+	struct camera_feedback_s	report2 = {};
+	_feedback_pub = orb_advertise(ORB_ID(camera_feedback), &report2);
+	
+	info();
 }
 
 CameraTrigger::~CameraTrigger()
@@ -405,6 +423,19 @@ CameraTrigger::cycle_trampoline(void *arg)
 
 	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
 
+	if (trig->_vgposition_sub < 0) {
+		trig->_vgposition_sub = orb_subscribe(ORB_ID(vehicle_global_position));
+	}
+	struct vehicle_global_position_s gpos;
+
+	orb_copy(ORB_ID(vehicle_global_position), trig->_vgposition_sub, &gpos);
+
+	
+	/* set timestamp the instant before the trigger goes off */
+	
+	trig->_lat = gpos.lat*10000000;;
+	trig->_lng = gpos.lon*10000000;;
+
 	if (trig->_vcommand_sub < 0) {
 		trig->_vcommand_sub = orb_subscribe(ORB_ID(vehicle_command));
 	}
@@ -414,7 +445,7 @@ CameraTrigger::cycle_trampoline(void *arg)
 
 	// while the trigger is inactive it has to be ready
 	// to become active instantaneously
-	int poll_interval_usec = 5000;
+	int poll_interval_usec = 10000;
 
 	if (trig->_mode < 3) {
 
@@ -497,7 +528,7 @@ CameraTrigger::cycle_trampoline(void *arg)
 
 				// Initialize position if not done yet
 				math::Vector<2> current_position(pos.x, pos.y);
-
+				//printf("dis mode on\n");
 				if (!trig->_valid_position) {
 					// First time valid position, take first shot
 					trig->_last_shoot_position = current_position;
@@ -507,6 +538,7 @@ CameraTrigger::cycle_trampoline(void *arg)
 
 				// Check that distance threshold is exceeded and the time between last shot is large enough
 				if ((trig->_last_shoot_position - current_position).length() >= trig->_distance) {
+					//trig->_last_shoot_position.print();
 					trig->shootOnce();
 					trig->_last_shoot_position = current_position;
 				}
@@ -521,14 +553,16 @@ CameraTrigger::cycle_trampoline(void *arg)
 		   camera_trigger::g_camera_trigger, USEC2TICK(poll_interval_usec));
 }
 
+
 void
 CameraTrigger::engage(void *arg)
 {
-
+	
 	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
 
 	struct camera_trigger_s	report = {};
-
+	struct camera_feedback_s	report2 = {};
+	
 	/* set timestamp the instant before the trigger goes off */
 	report.timestamp = hrt_absolute_time();
 
@@ -537,6 +571,16 @@ CameraTrigger::engage(void *arg)
 	report.seq = trig->_trigger_seq++;
 
 	orb_publish(ORB_ID(camera_trigger), trig->_trigger_pub, &report);
+	
+	report2.timestamp = hrt_absolute_time();
+	report2.lat = trig->_lat;
+	report2.lng = trig->_lng;
+	
+	if(!trig->_feedback_pub)
+		trig->_feedback_pub = orb_advertise(ORB_ID(camera_feedback), &report2);
+	else
+		orb_publish(ORB_ID(camera_feedback), trig->_feedback_pub, &report2); //added by dzp 2016/8/24
+	
 }
 
 void
