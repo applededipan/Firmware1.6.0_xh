@@ -54,7 +54,7 @@
 *
 * @group Camera trigger
 */
-PARAM_DEFINE_INT32(TRIG_INTERFACE, 2);
+PARAM_DEFINE_INT32(TRIG_INTERFACE, 1);
 
 /**
  * Camera trigger interval
