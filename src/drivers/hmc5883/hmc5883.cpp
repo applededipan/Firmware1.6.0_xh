@@ -429,9 +429,11 @@ HMC5883::init()
 
 	/* reset the device configuration */
 	reset();
-
-	_class_instance = register_class_devname(MAG_BASE_DEVICE_PATH);
-
+	uint32_t mag_use_id;
+	param_get(param_find("MAG_USE_ID"), &mag_use_id);
+	if(mag_use_id == 0){
+		_class_instance = register_class_devname(MAG_BASE_DEVICE_PATH);
+	}
 	ret = OK;
 	/* sensor is ok, but not calibrated */
 	_sensor_ok = true;
@@ -1012,25 +1014,27 @@ HMC5883::collect()
 	new_report.y = ((yraw_f * _range_scale) - _scale.y_offset) * _scale.y_scale;
 	/* z remains z */
 	new_report.z = ((zraw_f * _range_scale) - _scale.z_offset) * _scale.z_scale;
+	uint32_t mag_use_id;
+	param_get(param_find("MAG_USE_ID"), &mag_use_id);
+	if(mag_use_id == 0){
+		if (!(_pub_blocked)) {
 
-	if (!(_pub_blocked)) {
-
-		if (_mag_topic != nullptr) {
+			if (_mag_topic != nullptr) {
 			/* publish it */
-			orb_publish(ORB_ID(sensor_mag), _mag_topic, &new_report);
+				orb_publish(ORB_ID(sensor_mag), _mag_topic, &new_report);
 
-		} else {
-			_mag_topic = orb_advertise_multi(ORB_ID(sensor_mag), &new_report,
-							 &_orb_class_instance, (sensor_is_onboard) ? ORB_PRIO_HIGH : ORB_PRIO_MAX);
+			} else {
+				_mag_topic = orb_advertise_multi(ORB_ID(sensor_mag), &new_report,
+								 &_orb_class_instance, (sensor_is_onboard) ? ORB_PRIO_HIGH : ORB_PRIO_MAX);
 
-			if (_mag_topic == nullptr) {
+				if (_mag_topic == nullptr) {
 				DEVICE_DEBUG("ADVERT FAIL");
+				}
 			}
 		}
 	}
-
 	_last_report = new_report;
-
+	
 	/* post a report to the ring */
 	if (_reports->force(&new_report)) {
 		perf_count(_buffer_overflows);

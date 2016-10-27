@@ -60,12 +60,15 @@ int UavcanMagnetometerBridge::init()
 	if (res < 0) {
 		return res;
 	}
+	uint32_t mag_use_id;
+	param_get(param_find("MAG_USE_ID"), &mag_use_id);
+	if(mag_use_id ==1){
+		res = _sub_mag.start(MagCbBinder(this, &UavcanMagnetometerBridge::mag_sub_cb));
 
-	res = _sub_mag.start(MagCbBinder(this, &UavcanMagnetometerBridge::mag_sub_cb));
-
-	if (res < 0) {
-		DEVICE_LOG("failed to start uavcan sub: %d", res);
-		return res;
+		if (res < 0) {
+			DEVICE_LOG("failed to start uavcan sub: %d", res);
+			return res;
+		}
 	}
 
 	return 0;
@@ -106,6 +109,8 @@ int UavcanMagnetometerBridge::ioctl(struct file *filp, int cmd, unsigned long ar
 
 	case MAGIOCSSCALE: {
 			std::memcpy(&_scale, reinterpret_cast<const void *>(arg), sizeof(_scale));
+			/* check calibration, but not actually return an error */
+			(void)check_calibration();
 			return 0;
 		}
 
@@ -126,7 +131,9 @@ int UavcanMagnetometerBridge::ioctl(struct file *filp, int cmd, unsigned long ar
 			return 0;           // Pretend that this stuff is supported to keep the sensor app happy
 		}
 
-	case MAGIOCCALIBRATE:
+	case MAGIOCCALIBRATE:{
+			return OK;
+		}
 	case MAGIOCGSAMPLERATE:
 	case MAGIOCSRANGE:
 	case MAGIOCGRANGE:
@@ -156,10 +163,63 @@ void UavcanMagnetometerBridge::mag_sub_cb(const uavcan::ReceivedDataStructure<ua
 	 */
 	_report.timestamp = hrt_absolute_time();
 
-	_report.x = (msg.magnetic_field_ga[0] - _scale.x_offset) * _scale.x_scale;
-	_report.y = (msg.magnetic_field_ga[1] - _scale.y_offset) * _scale.y_scale;
+	_report.y = (msg.magnetic_field_ga[0] - _scale.x_offset) * _scale.x_scale;
+	_report.x = (msg.magnetic_field_ga[1] - _scale.y_offset) * _scale.y_scale;
 	_report.z = (msg.magnetic_field_ga[2] - _scale.z_offset) * _scale.z_scale;
 	unlock();
 
 	publish(msg.getSrcNodeID().get(), &_report);
 }
+
+/**********************************************************************************************/
+int UavcanMagnetometerBridge::check_scale()
+{
+	bool scale_valid;
+
+	if ((-FLT_EPSILON + 1.0f < _scale.x_scale && _scale.x_scale < FLT_EPSILON + 1.0f) &&
+	    (-FLT_EPSILON + 1.0f < _scale.y_scale && _scale.y_scale < FLT_EPSILON + 1.0f) &&
+	    (-FLT_EPSILON + 1.0f < _scale.z_scale && _scale.z_scale < FLT_EPSILON + 1.0f)) {
+		/* scale is one */
+		scale_valid = false;
+
+	} else {
+		scale_valid = true;
+	}
+
+	/* return 0 if calibrated, 1 else */
+	return !scale_valid;
+}
+
+int UavcanMagnetometerBridge::check_offset()
+{
+	bool offset_valid;
+
+	if ((-2.0f * FLT_EPSILON < _scale.x_offset && _scale.x_offset < 2.0f * FLT_EPSILON) &&
+	    (-2.0f * FLT_EPSILON < _scale.y_offset && _scale.y_offset < 2.0f * FLT_EPSILON) &&
+	    (-2.0f * FLT_EPSILON < _scale.z_offset && _scale.z_offset < 2.0f * FLT_EPSILON)) {
+		/* offset is zero */
+		offset_valid = false;
+
+	} else {
+		offset_valid = true;
+	}
+
+	/* return 0 if calibrated, 1 else */
+	return !offset_valid;
+}
+
+int UavcanMagnetometerBridge::check_calibration()
+{
+	bool offset_valid = (check_offset() == OK);
+	bool scale_valid  = (check_scale() == OK);
+
+	if (_calibrated != (offset_valid && scale_valid)) {
+		warnx("mag cal status changed %s%s", (scale_valid) ? "" : "scale invalid ",
+		      (offset_valid) ? "" : "offset invalid");
+		_calibrated = (offset_valid && scale_valid);
+	}
+
+	/* return 0 if calibrated, 1 else */
+	return (!_calibrated);
+}
+/**********************************************************************************************/
