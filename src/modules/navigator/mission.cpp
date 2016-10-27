@@ -1092,6 +1092,12 @@ Mission::prepare_mission_items(bool onboard, struct mission_item_s *mission_item
 }
 
 bool
+Mission::read_first_mission_item(mission_item_s *mission_item)
+{
+	return read_mission_item(0, 0 , mission_item);
+}
+
+bool
 Mission::read_mission_item(bool onboard, int offset, struct mission_item_s *mission_item)
 {
 	/* select onboard/offboard mission */

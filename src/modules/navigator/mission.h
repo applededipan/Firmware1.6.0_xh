@@ -93,9 +93,7 @@ public:
 	};
 	
 	bool set_current_offboard_mission_index(unsigned index);
-
-	unsigned find_offboard_land_start();
-
+	bool read_first_mission_item(mission_item_s *mission_item);
 private:
 	/**
 	 * Update onboard mission topic

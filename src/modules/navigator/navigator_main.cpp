@@ -180,6 +180,9 @@ Navigator::Navigator() :
 	_navigation_mode_array[9] = &_follow_target;
 
 	updateParams();
+	param_get(param_find("TAKEOFF_D_P_EN"),&takeoff_d_p_enable);
+	param_get(param_find("TAKEOFF_D_P_DIS"),&takeoff_d_p_distance);
+	param_get(param_find("TAKEOFF_D_P_ALT"),&takeoff_d_p_climb_alt);
 }
 
 Navigator::~Navigator()
@@ -314,7 +317,9 @@ Navigator::task_main()
 	_param_update_sub = orb_subscribe(ORB_ID(parameter_update));
 	_vehicle_command_sub = orb_subscribe(ORB_ID(vehicle_command));
 	_pos_sp_current_airspeed_sub = orb_subscribe(ORB_ID(position_setpoint_current_airspeed));
-
+	_takeoff_dynamic_point_pub = orb_advertise(ORB_ID(takeoff_dynamic_point), &_takeoff_dynamic_point_triplet);
+  takeoff_dynamic_point_sub = orb_subscribe(ORB_ID(takeoff_dynamic_point));
+  memset(&_takeoff_dynamic_point_triplet,0,sizeof(takeoff_dynamic_point_s));
 	/* copy all topics first time */
 	vehicle_status_update();
 	vehicle_land_detected_update();

@@ -409,7 +409,11 @@ MavlinkMissionManager::write_mission_item( uint16_t seq,mavlink_mission_item_t  
 			dm_write(dm_item, seq, DM_PERSIST_IN_FLIGHT_RESET  /*DM_PERSIST_POWER_ON_RESET*/, &mission_item, sizeof(struct mission_item_s));
 
 }
-
+void 
+MavlinkMissionManager::send_handle_mission_item_ack(mavlink_mission_item_t wp)
+{
+	mavlink_msg_mission_item_send_struct(_mavlink->get_channel(), &wp);
+}
 
 void
 MavlinkMissionManager::handle_message(const mavlink_message_t *msg)

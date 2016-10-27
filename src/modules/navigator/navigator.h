@@ -59,7 +59,7 @@
 #include <uORB/topics/vehicle_attitude_setpoint.h>
 #include <uORB/topics/vehicle_land_detected.h>
 #include <uORB/topics/position_setpoint_current_airspeed.h>
-
+#include <uORB/topics/takeoff_dynamic_point.h>
 #include "navigator_mode.h"
 #include "mission.h"
 #include "loiter.h"
@@ -219,7 +219,9 @@ public:
 	static float		get_time_inside(struct mission_item_s& item) { return (item.nav_cmd == NAV_CMD_TAKEOFF) ? 0.0f : item.time_inside; }
 
 private:
-
+	bool  takeoff_d_p_enable;
+	float takeoff_d_p_distance;
+	float takeoff_d_p_climb_alt;
 	bool		_task_should_exit;		/**< if true, sensor task should exit */
 	int		_navigator_task;		/**< task handle for sensor task */
 
@@ -238,7 +240,9 @@ private:
 	int		_param_update_sub;		/**< param update subscription */
 	int		_vehicle_command_sub;		/**< vehicle commands (onboard and offboard) */
 	int		_pos_sp_current_airspeed_sub;
+	int     takeoff_dynamic_point_sub;
 	
+	orb_advert_t    _takeoff_dynamic_point_pub;
 	orb_advert_t	_pos_sp_triplet_pub;		/**< publish position setpoint triplet */
 	orb_advert_t	_mission_result_pub;
 	orb_advert_t	_geofence_result_pub;
@@ -246,6 +250,7 @@ private:
 							  used only in very special failsafe modes
 							  when pos control is deactivated */
 
+	takeoff_dynamic_point_s             _takeoff_dynamic_point_triplet;
 	vehicle_status_s				_vstatus;		/**< vehicle status */
 	vehicle_land_detected_s				_land_detected;		/**< vehicle land_detected */
 	vehicle_control_mode_s				_control_mode;		/**< vehicle control mode */
