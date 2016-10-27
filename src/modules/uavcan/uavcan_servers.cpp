@@ -291,7 +291,7 @@ pthread_addr_t UavcanServers::run(pthread_addr_t)
 	Copy any firmware bundled in the ROMFS to the appropriate location on the
 	SD card, unless the user has copied other firmware for that device.
 	*/
-	unpackFwFromROMFS(UAVCAN_FIRMWARE_PATH, UAVCAN_ROMFS_FW_PATH);
+	//unpackFwFromROMFS(UAVCAN_FIRMWARE_PATH, UAVCAN_ROMFS_FW_PATH);
 
 	/* the subscribe call needs to happen in the same thread,
 	 * so not in the constructor */
@@ -1009,7 +1009,7 @@ void UavcanServers::unpackFwFromROMFS(const char* sd_path, const char* romfs_pat
 			}
 
 			struct dirent* src_fw_dirent = NULL;
-			while ((src_fw_dirent = readdir(src_ver_dir)) != NULL &&
+			while ((src_fw_dirent = readdir(src_ver_dir)) == NULL &&
 					!DIRENT_ISFILE(src_fw_dirent->d_type));
 
 			if (!src_fw_dirent) {
