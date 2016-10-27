@@ -57,7 +57,7 @@
 #include <systemlib/mavlink_log.h>
 #include <termios.h>
 #include <fcntl.h>
-
+#include <sys/stat.h>
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/actuator_controls.h>
 #include <uORB/topics/actuator_outputs.h>
@@ -1463,6 +1463,77 @@ public:
 		return (_feedback_time > 0) ? MAVLINK_MSG_ID_CAMERA_FEEDBACK_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES : 0;
 	}
 
+   void file_handle(mavlink_camera_feedback_t msg)
+	{
+		if(!_mavlink->get_mode()){
+		/*****************************************/
+					/* string to hold the path to the log */
+					char log_root[30] = "/fs/microsd";
+					char log_file_path[64] = "";
+					int fd = -1;
+					char buffer[512];
+					static int seq = 0;
+				    char ms[5];
+                    uint64_t utc_time_msec;
+                    time_t utc_time_sec,msec;
+
+					struct tm tt;
+					utc_time_sec = msg.time_usec / 1e6;
+					gmtime_r(&utc_time_sec, &tt);
+
+					char tstamp[22];
+					strftime(tstamp, sizeof(tstamp) - 1, "%Y/%m/%d/%H:%M:%S", &tt);
+
+					utc_time_msec = msg.time_usec / 1e3;
+					msec = utc_time_msec - utc_time_sec*1e3;
+
+					sprintf(&ms[0],".%d",msec);
+					strcat(tstamp,ms);
+
+					char dstamp[22];
+					strftime(dstamp, sizeof(dstamp) - 1, "%Y-%m-%d",&tt);
+					sprintf(log_file_path,"%s/camera_%s.txt",log_root,dstamp);
+
+					/* create log dir */
+//					if(!opendir(log_file_path)){
+//					    mkdir_ret = mkdir(log_file_path, S_IRWXU | S_IRWXG | S_IRWXO);
+//					    printf("mkdir:%d\n",mkdir_ret);
+//					}
+//					if(!mkdir_ret){
+		//				warnx("mkdir success %d: %s", mkdir_ret,log_file_path);
+
+						struct stat buf;
+						if(::stat(log_file_path, &buf) == -1){
+							// log file not exit
+							fd = open(log_file_path, O_CREAT | O_RDWR | O_APPEND);
+							if(fd>0){
+								memset(buffer,0,sizeof(buffer));
+								// 编号           时间              纬度        经度        高度   速度   横滚   俯仰    指向 //飞行姿态  触发负载
+								sprintf(buffer, "%-4s         %-25s  %-15s  %-15s  %-10s  %-10s     %-10s%-10s%-5s  %-5s \r\n ",
+										"编号", "时间","纬度", "经度", "绝对高度", "相对高度", "速度", "横滚", "俯仰", "偏航");
+								write(fd,&buffer[0],strlen(buffer) + 1);
+								//fsync(fd);
+							}
+						}else{
+							// log file ex
+							fd = open(log_file_path, O_RDWR | O_APPEND);
+						}
+						if(fd>0){
+
+							memset(buffer,0,sizeof(buffer));
+							sprintf(&buffer[0],"\r\n %-4d  %-25s  %-15.7f  %-15.7f  %-10.2f  %-10.2f  %-5.1f  %-5.1f  %-5.1f  %-5.1f",
+									seq,tstamp,(double)(msg.lat/10000000.0),(double)(msg.lng/10000000.0),(double)msg.alt_msl,(double)msg.alt_rel,(double)msg.foc_len,(double)msg.roll,(double)msg.pitch,(double)msg.yaw);
+							write(fd,&buffer[0],strlen(buffer) + 1);
+								seq++;
+
+							//fsync(fd);
+							//printf("%s",&buffer[0]);
+					   }
+					    close(fd);
+					  }
+					/*****************************************/
+	}
+
 private:
 	MavlinkOrbSubscription *_feedback_sub;
 	uint64_t _feedback_time;
@@ -1483,14 +1554,22 @@ protected:
 
 		if (_feedback_sub->update(&_feedback_time, &feedback)) {
 			mavlink_camera_feedback_t msg;
+			memset(&msg,0,sizeof(msg));
 
 			msg.time_usec = feedback.timestamp;
 			msg.lat = feedback.lat;
 			msg.lng = feedback.lng;
-			//printf("*********feedback \n");
+			msg.alt_msl = feedback.alt_msl;
+			msg.alt_rel = feedback.alt_rel;
+			msg.roll = feedback.roll;
+			msg.pitch = feedback.pitch;
+			msg.yaw = feedback.yaw;
+			msg.foc_len = feedback.foc_len;
+
 			/* ensure that only active trigger events are sent */
 			if (feedback.timestamp > 0) {
 				mavlink_msg_camera_feedback_send_struct(_mavlink->get_channel(), &msg);
+				file_handle(msg);
 			}
 		}
 	}
