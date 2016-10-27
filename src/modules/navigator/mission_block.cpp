@@ -299,6 +299,7 @@ MissionBlock::is_mission_item_reached()
 				}
 			}
 		} else {
+#if 0
 			/* for normal mission items used their acceptance radius */
 			float mission_acceptance_radius = _navigator->get_acceptance_radius(_mission_item.acceptance_radius);
 
@@ -311,6 +312,45 @@ MissionBlock::is_mission_item_reached()
 				&& dist_z <= _navigator->get_altitude_acceptance_radius()) {
 				_waypoint_position_reached = true;
 			}
+#endif
+/********************added by dzp 2016/10/8***********************/
+			float mission_acceptance_radius = 2.0f;
+			float x_previousmp,x_realp;
+			float y_previousmp,y_realp;
+			float distance1,distance2;
+			float costheta;
+			static double previous_lat = 0,previous_lon = 0;
+			//static uint16_t timetmp = 0;
+			map_projection_reference_s hil_local_proj_ref;
+
+			struct position_setpoint_triplet_s *pos_sp_triplet = _navigator->get_position_setpoint_triplet();
+			map_projection_init(&hil_local_proj_ref,pos_sp_triplet->current.lat,pos_sp_triplet->current.lon); //current waypoint coordinate as zero point
+		
+			if(fabs(pos_sp_triplet->current.lat-pos_sp_triplet->previous.lat)<0.0000001 &&
+					fabs(pos_sp_triplet->current.lon-pos_sp_triplet->previous.lon)<0.0000001){
+						map_projection_project(&hil_local_proj_ref,previous_lat,previous_lon, &x_previousmp, &y_previousmp);//previous waypoint coordinate
+			}else{
+						map_projection_project(&hil_local_proj_ref,pos_sp_triplet->previous.lat,pos_sp_triplet->previous.lon, &x_previousmp, &y_previousmp);//previous waypoint coordinate
+						previous_lat = pos_sp_triplet->previous.lat;
+						previous_lon = pos_sp_triplet->previous.lon;
+			}	
+			
+			distance1 = sqrt(x_previousmp*x_previousmp + y_previousmp*y_previousmp);
+			map_projection_project(&hil_local_proj_ref,_navigator->get_global_position()->lat,_navigator->get_global_position()->lon, &x_realp, &y_realp);//real time coordinate
+			distance2 = sqrt(x_realp*x_realp + y_realp*y_realp);
+			costheta = (x_previousmp*x_realp + y_previousmp*y_realp)/(distance1*distance2);
+			/* if set to zero use the default instead */
+			if (mission_acceptance_radius < NAV_EPSILON_POSITION) {
+						mission_acceptance_radius = _navigator->get_acceptance_radius();
+			}
+		
+			if ((dist >= 0.0f && dist <= mission_acceptance_radius
+				&& dist_z <= _navigator->get_default_acceptance_radius())|| (costheta < 0 && dist < 100)) {
+						_waypoint_position_reached = true;
+						PX4_INFO("way reached: x_previousmp:%f, y_previousmp:%f, x_realp:%f, y_realp:%f",(double)x_previousmp,(double)y_previousmp,(double)x_realp,(double)y_realp);
+						PX4_INFO("way reached: distance1:%f, distance2:%f, costheta:%f, dist:%f",(double)distance1,(double)distance1,(double)costheta,(double)dist);
+		  }
+			
 		}
 
 		if (_waypoint_position_reached) {
