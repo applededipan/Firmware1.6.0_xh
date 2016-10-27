@@ -64,8 +64,26 @@ enum MAVLINK_WPM_CODES {
 	MAVLINK_WPM_CODE_ENUM_END
 };
 
+class Mission;
 #define MAVLINK_MISSION_PROTOCOL_TIMEOUT_DEFAULT 5000000    ///< Protocol communication action timeout in useconds
 #define MAVLINK_MISSION_RETRY_TIMEOUT_DEFAULT 500000        ///< Protocol communication retry timeout in useconds
+typedef struct MAVLINK_PACKED __mavlink_mission_item_t_buff
+	{
+	 float param1; /*< PARAM1, see MAV_CMD enum*/
+	 float param2; /*< PARAM2, see MAV_CMD enum*/
+	 float param3; /*< PARAM3, see MAV_CMD enum*/
+	 float param4; /*< PARAM4, see MAV_CMD enum*/
+	 int32_t x; /*< PARAM5 / local: x position, global: latitude*/
+	 int32_t y; /*< PARAM6 / y position: global: longitude*/
+	 float   z; /*< PARAM7 / z position: global: altitude (relative or absolute, depending on frame.*/
+	 uint16_t seq; /*< Sequence*/
+	 uint16_t command; /*< The scheduled action for the MISSION. see MAV_CMD in common.xml MAVLink specs*/
+	 uint8_t target_system; /*< System ID*/
+	 uint8_t target_component; /*< Component ID*/
+	 uint8_t frame; /*< The coordinate system of the MISSION. see MAV_FRAME in mavlink_types.h*/
+	 uint8_t current; /*< false:0, true:1*/
+	 uint8_t autocontinue; /*< autocontinue to next wp*/
+	} mavlink_mission_item_t_buff;
 
 class MavlinkMissionManager : public MavlinkStream
 {
@@ -99,8 +117,9 @@ public:
 	void set_verbose(bool v) { _verbose = v; }
 
 	void check_active_mission(void);
-
+	void test_39_set(char num);
 private:
+	bool flag__1E7, flag__setting;
 	enum MAVLINK_WPM_STATES _state;					///< Current state
 
 	uint64_t		_time_last_recv;
@@ -170,6 +189,9 @@ private:
 
 	void send_mission_item(uint8_t sysid, uint8_t compid, uint16_t seq);
 
+	mavlink_mission_item_t read_mission_item( uint16_t seq );
+	void write_mission_item( uint16_t seq,mavlink_mission_item_t  wp);
+
 	void send_mission_request(uint8_t sysid, uint8_t compid, uint16_t seq);
 
 	/**
@@ -197,6 +219,8 @@ private:
 	void handle_mission_item_int(const mavlink_message_t *msg);
 	void handle_mission_item_both(const mavlink_message_t *msg);
 
+	void send_handle_mission_item_ack(mavlink_mission_item_t *wp_buff);
+
 	void handle_mission_clear_all(const mavlink_message_t *msg);
 
 	/**
@@ -206,7 +230,7 @@ private:
 	 *			       depending on _int_mode
 	 * @param mission_item	       pointer to mission_item to construct
 	 */
-	int parse_mavlink_mission_item(const mavlink_mission_item_t *mavlink_mission_item, struct mission_item_s *mission_item);
+	int parse_mavlink_mission_item( mavlink_mission_item_t  *mavlink_mission_item, struct mission_item_s *mission_item);
 
 	/**
 	 * Format mission_item_s as mavlink MISSION_ITEM(_INT) message.
