@@ -58,6 +58,7 @@
 #include <uORB/topics/geofence_result.h>
 #include <uORB/topics/vehicle_attitude_setpoint.h>
 #include <uORB/topics/vehicle_land_detected.h>
+#include <uORB/topics/position_setpoint_current_airspeed.h>
 
 #include "navigator_mode.h"
 #include "mission.h"
@@ -236,7 +237,8 @@ private:
 	int		_offboard_mission_sub;		/**< offboard mission subscription */
 	int		_param_update_sub;		/**< param update subscription */
 	int		_vehicle_command_sub;		/**< vehicle commands (onboard and offboard) */
-
+	int		_pos_sp_current_airspeed_sub;
+	
 	orb_advert_t	_pos_sp_triplet_pub;		/**< publish position setpoint triplet */
 	orb_advert_t	_mission_result_pub;
 	orb_advert_t	_geofence_result_pub;

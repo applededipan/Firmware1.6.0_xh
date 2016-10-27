@@ -78,8 +78,7 @@
 #include <uORB/topics/transponder_report.h>
 #include <uORB/topics/gps_inject_data.h>
 #include <uORB/topics/control_state.h>
-#include <uORB/topics/collision_report.h>
-
+#include <uORB/topics/position_setpoint_current_airspeed.h>
 
 #include "mavlink_ftp.h"
 
@@ -144,7 +143,6 @@ private:
 	void handle_message_distance_sensor(mavlink_message_t *msg);
 	void handle_message_follow_target(mavlink_message_t *msg);
 	void handle_message_adsb_vehicle(mavlink_message_t *msg);
-	void handle_message_collision(mavlink_message_t *msg);
 	void handle_message_gps_rtcm_data(mavlink_message_t *msg);
 	void handle_message_battery_status(mavlink_message_t *msg);
 	void handle_message_serial_control(mavlink_message_t *msg);
@@ -225,7 +223,6 @@ private:
 	orb_advert_t _time_offset_pub;
 	orb_advert_t _follow_target_pub;
 	orb_advert_t _transponder_report_pub;
-	orb_advert_t _collision_report_pub;
 	orb_advert_t _control_state_pub;
 	static const int _gps_inject_data_queue_size = 6;
 	orb_advert_t _gps_inject_data_pub;
@@ -245,6 +242,9 @@ private:
 	double _time_offset_avg_alpha;
 	int64_t _time_offset;
 	int	_orb_class_instance;
+	
+	orb_advert_t _pos_sp_current_airspeed_pub;
+	position_setpoint_current_airspeed_s _pos_sp_current_airspeed;
 
 	static constexpr unsigned MOM_SWITCH_COUNT = 8;
 

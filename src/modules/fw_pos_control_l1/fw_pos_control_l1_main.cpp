@@ -101,6 +101,7 @@
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/uORB.h>
 #include <vtol_att_control/vtol_type.h>
+#include <uORB/topics/position_setpoint_current_airspeed.h>
 
 static int	_control_task = -1;			/**< task handle for sensor task */
 
@@ -170,7 +171,7 @@ private:
 	int		_params_sub;			/**< notification of parameter updates */
 	int		_manual_control_sub;		/**< notification of manual control updates */
 	int		_sensor_combined_sub;		/**< for body frame accelerations */
-
+	int		_pos_sp_current_airspeed_sub;
 	orb_advert_t	_attitude_sp_pub;		/**< attitude setpoint */
 	orb_advert_t	_tecs_status_pub;		/**< TECS status publication */
 	orb_advert_t	_fw_pos_ctrl_status_pub;		/**< navigation capabilities publication */
@@ -549,7 +550,7 @@ FixedwingPositionControl::FixedwingPositionControl() :
 	_params_sub(-1),
 	_manual_control_sub(-1),
 	_sensor_combined_sub(-1),
-
+	_pos_sp_current_airspeed_sub(-1),
 	/* publications */
 	_attitude_sp_pub(nullptr),
 	_tecs_status_pub(nullptr),
@@ -570,7 +571,7 @@ FixedwingPositionControl::FixedwingPositionControl() :
 	_global_pos(),
 	_pos_sp_triplet(),
 	_sensor_combined(),
-
+	
 	/* performance counters */
 	_loop_perf(perf_alloc(PC_ELAPSED, "fw l1 control")),
 
@@ -961,6 +962,16 @@ FixedwingPositionControl::vehicle_setpoint_poll()
 
 	if (pos_sp_triplet_updated) {
 		orb_copy(ORB_ID(position_setpoint_triplet), _pos_sp_triplet_sub, &_pos_sp_triplet);
+	}
+	bool pos_sp_current_airspeed_updated;
+	orb_check(_pos_sp_current_airspeed_sub, &pos_sp_current_airspeed_updated);
+	if (pos_sp_current_airspeed_updated)
+	{
+		position_setpoint_current_airspeed_s _read_current_airspeed;
+
+		orb_copy(ORB_ID(position_setpoint_current_airspeed), _pos_sp_current_airspeed_sub, &_read_current_airspeed);
+		//if(_read_current_airspeed.used_flag)
+			_pos_sp_triplet.current.cruising_speed += _read_current_airspeed.airspeed;
 	}
 }
 
@@ -2206,6 +2217,7 @@ FixedwingPositionControl::task_main()
 	/*
 	 * do subscriptions
 	 */
+	_pos_sp_current_airspeed_sub = orb_subscribe(ORB_ID(position_setpoint_current_airspeed));
 	_global_pos_sub = orb_subscribe(ORB_ID(vehicle_global_position));
 	_pos_sp_triplet_sub = orb_subscribe(ORB_ID(position_setpoint_triplet));
 	_ctrl_state_sub = orb_subscribe(ORB_ID(control_state));

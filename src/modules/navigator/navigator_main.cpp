@@ -115,6 +115,7 @@ Navigator::Navigator() :
 	_offboard_mission_sub(-1),
 	_param_update_sub(-1),
 	_vehicle_command_sub(-1),
+	_pos_sp_current_airspeed_sub(-1),
 	_pos_sp_triplet_pub(nullptr),
 	_mission_result_pub(nullptr),
 	_geofence_result_pub(nullptr),
@@ -312,6 +313,7 @@ Navigator::task_main()
 	_offboard_mission_sub = orb_subscribe(ORB_ID(offboard_mission));
 	_param_update_sub = orb_subscribe(ORB_ID(parameter_update));
 	_vehicle_command_sub = orb_subscribe(ORB_ID(vehicle_command));
+	_pos_sp_current_airspeed_sub = orb_subscribe(ORB_ID(position_setpoint_current_airspeed));
 
 	/* copy all topics first time */
 	vehicle_status_update();
@@ -649,6 +651,17 @@ Navigator::task_main()
 			_pos_sp_triplet.timestamp = hrt_absolute_time();
 			publish_position_setpoint_triplet();
 			_pos_sp_triplet_updated = false;
+		}
+		
+		/*ye-20160923*/
+		bool pos_sp_current_airspeed_updated = 0;
+		orb_check(_pos_sp_current_airspeed_sub, &pos_sp_current_airspeed_updated);
+		if (pos_sp_current_airspeed_updated)
+		{
+			position_setpoint_current_airspeed_s read_current_airspeed;
+			orb_copy(ORB_ID(position_setpoint_current_airspeed), _pos_sp_current_airspeed_sub, &read_current_airspeed);
+			set_cruising_speed(read_current_airspeed.airspeed+get_cruising_speed());
+			_pos_sp_triplet.current.cruising_speed = get_cruising_speed();
 		}
 
 		if (_mission_result_updated) {
