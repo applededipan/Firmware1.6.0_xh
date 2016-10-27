@@ -1,14 +1,14 @@
 include(posix/px4_impl_posix)
 
-set(CMAKE_TOOLCHAIN_FILE ${PX4_SOURCE_DIR}/cmake/toolchains/Toolchain-native.cmake)
+set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/cmake/toolchains/Toolchain-native.cmake)
 
 set(config_module_list
 	drivers/boards/sitl
 	drivers/device
 	drivers/gps
 	drivers/pwm_out_sim
-	drivers/vmount
-
+	drivers/camera_trigger
+	
 	platforms/common
 	platforms/posix/drivers/accelsim
 	platforms/posix/drivers/adcsim
@@ -33,17 +33,21 @@ set(config_module_list
 	systemcmds/top
 	systemcmds/motor_ramp
 
+	modules/attitude_estimator_ekf
 	modules/attitude_estimator_q
 	modules/commander
 	modules/dataman
 	modules/ekf2
+	modules/ekf_att_pos_estimator
 	modules/fw_att_control
 	modules/fw_pos_control_l1
 	modules/land_detector
 	modules/logger
 	modules/mavlink
 	modules/mc_att_control
+	modules/mc_att_control_multiplatform
 	modules/mc_pos_control
+	modules/mc_pos_control_multiplatform
 	modules/navigator
 	modules/param
 	modules/position_estimator_inav
@@ -73,11 +77,6 @@ set(config_module_list
 	lib/terrain_estimation
 
 	examples/px4_simple_app
-	examples/mc_att_control_multiplatform
-	examples/mc_pos_control_multiplatform
-	examples/ekf_att_pos_estimator
-	examples/attitude_estimator_ekf
-	examples/fixedwing_control
 
 	#
 	# Testing
@@ -85,7 +84,6 @@ set(config_module_list
 	drivers/sf0x/sf0x_tests
 	lib/rc/rc_tests
 	modules/commander/commander_tests
-	modules/mc_pos_control/mc_pos_control_tests
 	modules/controllib_test
 	#modules/mavlink/mavlink_tests #TODO: fix mavlink_tests
 	modules/unit_test
@@ -99,12 +97,9 @@ set(config_extra_builtin_cmds
 	sercon
 	)
 
-# Default config_sitl_rcS_dir (posix_sitl_default), this is overwritten later
-# for the config posix_sitl_efk2 and set again, explicitly, for posix_sitl_lpe,
-# which are based on posix_sitl_default.
-set(config_sitl_rcS_dir
-	posix-configs/SITL/init/lpe
-	CACHE INTERNAL "init script dir for sitl"
+set(config_sitl_rcS
+	posix-configs/SITL/init/rcS
+	CACHE FILEPATH "init script for sitl"
 	)
 
 set(config_sitl_viewer

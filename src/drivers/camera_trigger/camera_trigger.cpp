@@ -49,9 +49,11 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <mathlib/mathlib.h>
+#ifdef __PX4_NUTTX
 #include <nuttx/clock.h>
 #include <nuttx/arch.h>
 #include <nuttx/wqueue.h>
+#endif 
 #include <systemlib/systemlib.h>
 #include <systemlib/err.h>
 #include <systemlib/param/param.h>
@@ -72,10 +74,10 @@
 #include <drivers/drv_gpio.h>
 #include <drivers/drv_hrt.h>
 #include <board_config.h>
-
+#ifdef __PX4_NUTTX
 #include "interfaces/src/pwm.h"
 #include "interfaces/src/relay.h"
-
+#endif
 #define TRIGGER_PIN_DEFAULT 1
 
 extern "C" __EXPORT int camera_trigger_main(int argc, char *argv[]);
@@ -186,10 +188,15 @@ private:
 	param_t			_p_distance;
 	param_t			_p_pin;
 	param_t			_p_interface;
-
+#ifdef __PX4_NUTTX
 	camera_interface_mode_t	_camera_interface_mode;
 	CameraInterface		*_camera_interface;  ///< instance of camera interface
-
+#else
+	/**
+	 * Trampoline to the worker task
+	 */
+	static void	task_main_trampoline(void *arg);
+#endif
 	/**
 	 * Vehicle command handler
 	 */
@@ -221,14 +228,18 @@ private:
 
 };
 
-struct work_s CameraTrigger::_work;
+//struct work_s CameraTrigger::_work;
 
 namespace camera_trigger
 {
 
 CameraTrigger	*g_camera_trigger;
 }
-
+#ifdef __PX4_NUTTX
+struct work_s CameraTrigger::_work;
+#else
+CameraTrigger	*g_camera_trigger = nullptr;
+#endif
 CameraTrigger::CameraTrigger() :
 	_engagecall {},
 	_disengagecall {},
@@ -260,10 +271,15 @@ CameraTrigger::CameraTrigger() :
 	_airspeed(0.0f),
 	_gps_time_usec(0),
 	_trigger_pub(nullptr),
+#ifdef __PX4_NUTTX	
 	_feedback_pub(nullptr),                             //added by dzp 2016/8/24
 	_camera_interface_mode(CAMERA_INTERFACE_MODE_RELAY),
 	_camera_interface(nullptr)
+#else
+	_feedback_pub(nullptr)
+#endif
 {
+#ifdef __PX4_NUTTX
 	//Initiate Camera interface basedon camera_interface_mode
 	if (_camera_interface != nullptr) {
 		delete(_camera_interface);
@@ -272,7 +288,9 @@ CameraTrigger::CameraTrigger() :
 	}
 
 	memset(&_work, 0, sizeof(_work));
-
+#else
+  	g_camera_trigger = this;
+#endif
 	// Parameters
 	_p_interval = param_find("TRIG_INTERVAL");
 	_p_distance = param_find("TRIG_DISTANCE");
@@ -284,6 +302,7 @@ CameraTrigger::CameraTrigger() :
 	param_get(_p_interval, &_interval);
 	param_get(_p_distance, &_distance);
 	param_get(_p_mode, &_mode);
+#ifdef __PX4_NUTTX
 	param_get(_p_interface, &_camera_interface_mode);
 
 	switch (_camera_interface_mode) {
@@ -298,7 +317,7 @@ CameraTrigger::CameraTrigger() :
 	default:
 		break;
 	}
-
+#endif
 	struct camera_trigger_s	report = {};
 
 	_trigger_pub = orb_advertise(ORB_ID(camera_trigger), &report);
@@ -306,13 +325,16 @@ CameraTrigger::CameraTrigger() :
 	struct camera_feedback_s	report2 = {};
 	_feedback_pub = orb_advertise(ORB_ID(camera_feedback), &report2);
 	
+#ifndef __PX4_NUTTX	
 	info();
+#endif
 }
 
 CameraTrigger::~CameraTrigger()
 {
+#ifdef __PX4_NUTTX
 	delete(_camera_interface);
-
+#endif
 	camera_trigger::g_camera_trigger = nullptr;
 }
 
@@ -387,6 +409,14 @@ CameraTrigger::shootOnce()
 		       (hrt_callout)&CameraTrigger::disengage, this);
 }
 
+#ifndef __PX4_NUTTX
+void
+CameraTrigger::task_main_trampoline(void *arg)
+{
+	g_camera_trigger->cycle_trampoline(g_camera_trigger);
+}
+#endif
+
 void
 CameraTrigger::start()
 {
@@ -403,16 +433,30 @@ CameraTrigger::start()
 	} else {
 		keepAlive(false);
 	}
-
+#ifdef __PX4_NUTTX
 	// start to monitor at high rate for trigger enable command
 	work_queue(LPWORK, &_work, (worker_t)&CameraTrigger::cycle_trampoline, this, USEC2TICK(1));
+#else
+/* start the Camera_Trigger task */
+	 int _task = px4_task_spawn_cmd("camera_trigger",
+				   SCHED_DEFAULT,
+				   SCHED_PRIORITY_DEFAULT,
+				   1200,
+				   (px4_main_t)&CameraTrigger::task_main_trampoline,
+				   nullptr);
 
+	if (_task < 0) {
+		PX4_INFO("task start failed: %d", errno);
+	}
+#endif
 }
 
 void
 CameraTrigger::stop()
 {
+#ifdef __PX4_NUTTX
 	work_cancel(LPWORK, &_work);
+#endif
 	hrt_cancel(&_engagecall);
 	hrt_cancel(&_disengagecall);
 	hrt_cancel(&_engage_turn_on_off_call);
@@ -488,6 +532,24 @@ CameraTrigger::cycle_trampoline(void *arg)
 	// while the trigger is inactive it has to be ready
 	// to become active instantaneously
 	int poll_interval_usec = 10000;
+	#ifndef __PX4_NUTTX
+	PX4_INFO("camera trigger thread start");
+	while(trig->_mode){
+
+		if (trig->_vgposition_sub < 0) {
+				trig->_vgposition_sub = orb_subscribe(ORB_ID(vehicle_global_position));
+		}
+		orb_copy(ORB_ID(vehicle_global_position), trig->_vgposition_sub, &gpos);
+		trig->_gps_time_usec = gpos.timestamp;
+		//PX4_INFO("gps_usec:%llu",gpos.timestamp);
+	
+		/* set timestamp the instant before the trigger goes off */
+	
+		trig->_lat = gpos.lat*10000000;
+		trig->_lng = gpos.lon*10000000;
+		//PX4_INFO("lat:%llu,lng:%llu",trig->_lat,trig->_lng);
+		orb_check(trig->_vcommand_sub, &updated);
+#endif 
 
 	if (trig->_mode < 3) {
 
@@ -517,7 +579,7 @@ CameraTrigger::cycle_trampoline(void *arg)
 			} else if (cmd.command == vehicle_command_s::VEHICLE_CMD_DO_DIGICAM_CONTROL) {
 				if (cmd.param5 > 0) {
 					// One-shot trigger, default 1 ms interval
-					trig->_interval = 1000;
+					//trig->_interval = 1000;
 					trig->control(true);
 				}
 			}
@@ -546,7 +608,7 @@ CameraTrigger::cycle_trampoline(void *arg)
 				orb_copy(ORB_ID(vehicle_command), trig->_vcommand_sub, &cmd);
 
 				if (cmd.command == vehicle_command_s::VEHICLE_CMD_DO_SET_CAM_TRIGG_DIST) {
-
+#ifndef __PX4_POSIX
 					// Set trigger to disabled if the set distance is not positive
 					if (cmd.param1 > 0.0f && !trig->_trigger_enabled) {
 						trig->turnOnOff();
@@ -561,7 +623,7 @@ CameraTrigger::cycle_trampoline(void *arg)
 						trig->keepAlive(false);
 						trig->turnOnOff();
 					}
-
+#endif
 					trig->_trigger_enabled = cmd.param1 > 0.0f;
 					trig->_distance = cmd.param1;
 				}
@@ -591,9 +653,13 @@ CameraTrigger::cycle_trampoline(void *arg)
 			poll_interval_usec = 100000;
 		}
 	}
-
+#ifdef __PX4_NUTTX
 	work_queue(LPWORK, &_work, (worker_t)&CameraTrigger::cycle_trampoline,
 		   camera_trigger::g_camera_trigger, USEC2TICK(poll_interval_usec));
+#else
+	usleep(poll_interval_usec);
+	}
+#endif
 }
 
 
@@ -608,9 +674,9 @@ CameraTrigger::engage(void *arg)
 	
 	/* set timestamp the instant before the trigger goes off */
 	report.timestamp = hrt_absolute_time();
-
+#ifdef __PX4_NUTTX
 	trig->_camera_interface->trigger(true);
-
+#endif
 	report.seq = trig->_trigger_seq++;
 
 	orb_publish(ORB_ID(camera_trigger), trig->_trigger_pub, &report);
@@ -624,11 +690,15 @@ CameraTrigger::engage(void *arg)
   px4_clock_gettime(CLOCK_REALTIME, &ts);
   clock_usec = ts.tv_sec*1e6 + ts.tv_nsec/1e3 + 28800*1e6;
 //    printf("_gps_time_usec:%llu \n",trig->_gps_time_usec);
+#ifdef __PX4_NUTTX
   if((trig->_gps_time_usec/1e6) >= ((time_t)1234567890ULL)){
     	 if(trig->_gps_time_usec/1e6 - ts.tv_sec > 315360000){//10 years
     	    	return;
     	   }else{  time_usec = clock_usec;    }
   }else{  return;  }
+#else
+	time_usec = clock_usec;
+#endif
 /**********************************************************************************************************************/
 	report2.timestamp = time_usec;
 	report2.lat = trig->_lat;
@@ -648,9 +718,11 @@ CameraTrigger::engage(void *arg)
 void
 CameraTrigger::disengage(void *arg)
 {
+#ifdef __PX4_NUTTX
 	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
 
 	trig->_camera_interface->trigger(false);
+#endif
 }
 
 void
@@ -673,17 +745,21 @@ CameraTrigger::disengage_turn_on_off(void *arg)
 void
 CameraTrigger::keep_alive_up(void *arg)
 {
+#ifdef __PX4_NUTTX
 	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
 
 	trig->_camera_interface->keep_alive(true);
+#endif
 }
 
 void
 CameraTrigger::keep_alive_down(void *arg)
 {
+#ifdef __PX4_NUTTX
 	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
 
 	trig->_camera_interface->keep_alive(false);
+#endif
 }
 
 void
@@ -694,7 +770,9 @@ CameraTrigger::info()
 	PX4_INFO("interval : %.2f [ms]", (double)_interval);
 	PX4_INFO("distance : %.2f [m]", (double)_distance);
 	PX4_INFO("activation time : %.2f [ms]", (double)_activation_time);
+#ifdef __PX4_NUTTX
 	_camera_interface->info();
+#endif
 }
 
 static int usage()

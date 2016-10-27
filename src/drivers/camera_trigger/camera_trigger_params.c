@@ -38,8 +38,9 @@
  * @author Mohammed Kabir <mhkabir98@gmail.com>
  * @author Andreas Bircher <andreas@wingtra.com>
  */
-
+#ifdef __PX4_NUTTX
 #include <nuttx/config.h>
+#endif
 #include <systemlib/param/param.h>
 
 /**

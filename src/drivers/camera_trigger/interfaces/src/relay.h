@@ -5,7 +5,7 @@
  *
  */
 #pragma once
-
+#ifdef __PX4_NUTTX
 #include <systemlib/err.h>
 #include <systemlib/param/param.h>
 #include <board_config.h>
@@ -39,3 +39,4 @@ private:
 	};
 
 };
+#endif

@@ -3,7 +3,7 @@
  */
 
 #pragma once
-
+#ifdef __PX4_NUTTX
 class CameraInterface
 {
 public:
@@ -62,3 +62,4 @@ protected:
 	virtual void setup() {};
 
 };
+#endif

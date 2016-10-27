@@ -1465,6 +1465,7 @@ public:
 
    void file_handle(mavlink_camera_feedback_t msg)
 	{
+#ifndef __PX4_POSIX
 		if(!_mavlink->get_mode()){
 		/*****************************************/
 					/* string to hold the path to the log */
@@ -1532,6 +1533,7 @@ public:
 					    close(fd);
 					  }
 					/*****************************************/
+#endif
 	}
 
 private:
