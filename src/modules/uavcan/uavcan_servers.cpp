@@ -398,8 +398,13 @@ pthread_addr_t UavcanServers::run(pthread_addr_t)
 					 */
 					_param_index = 0;
 					_param_list_in_progress = true;
+<<<<<<< HEAD
 					_param_list_node_id = get_next_active_node_id(0);
 					_param_list_all_nodes = true;
+=======
+					_param_list_node_id = get_next_active_node_id(1);
+					_param_list_all_nodes = false;
+>>>>>>> Modify UAVCAN influence mavlink passing parameters.
 
 					warnx("UAVCAN command bridge: starting global param list with node %hhu", _param_list_node_id);
 
