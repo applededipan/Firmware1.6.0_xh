@@ -499,24 +499,6 @@ Navigator::task_main()
 				rep->current.valid = true;
 				rep->next.valid = false;
 
-			} else if (cmd.command == vehicle_command_s::VEHICLE_CMD_DO_LAND_START) {
-
-				/* find NAV_CMD_DO_LAND_START in the mission and
-				 * use MAV_CMD_MISSION_START to start the mission there
-				 */
-				unsigned land_start = _mission.find_offboard_land_start();
-				if (land_start != -1) {
-					vehicle_command_s vcmd = {};
-					vcmd.target_system = get_vstatus()->system_id;
-					vcmd.target_component = get_vstatus()->component_id;
-					vcmd.command = vehicle_command_s::VEHICLE_CMD_MISSION_START;
-					vcmd.param1 = land_start;
-					vcmd.param2 = 0;
-
-					orb_advert_t pub = orb_advertise_queue(ORB_ID(vehicle_command), &vcmd, vehicle_command_s::ORB_QUEUE_LENGTH);
-					(void)orb_unadvertise(pub);
-				}
-
 			} else if (cmd.command == vehicle_command_s::VEHICLE_CMD_MISSION_START) {
 
 				if (get_mission_result()->valid &&
@@ -651,24 +633,90 @@ Navigator::task_main()
 			_pos_sp_triplet.next.valid = false;
 			_pos_sp_triplet_updated = true;
 		}
-
-		if (_pos_sp_triplet_updated) {
-			_pos_sp_triplet.timestamp = hrt_absolute_time();
-			publish_position_setpoint_triplet();
-			_pos_sp_triplet_updated = false;
-		}
-		
+	
 		/*ye-20160923*/
 		bool pos_sp_current_airspeed_updated = 0;
 		orb_check(_pos_sp_current_airspeed_sub, &pos_sp_current_airspeed_updated);
-		if (pos_sp_current_airspeed_updated)
-		{
+		if (pos_sp_current_airspeed_updated) {
 			position_setpoint_current_airspeed_s read_current_airspeed;
 			orb_copy(ORB_ID(position_setpoint_current_airspeed), _pos_sp_current_airspeed_sub, &read_current_airspeed);
 			set_cruising_speed(read_current_airspeed.airspeed+get_cruising_speed());
 			_pos_sp_triplet.current.cruising_speed = get_cruising_speed();
 		}
 
+		static double lat, lon;
+		if(takeoff_d_p_enable){
+			static uint64_t timestamp_break = 1 ;
+
+			double distance = get_distance_to_next_waypoint(
+					(double)_home_pos.lat,(double)_home_pos.lon,
+					_global_pos.lat ,_global_pos.lon );
+
+			updated = false;
+			orb_check(takeoff_dynamic_point_sub, &updated);
+
+			if (updated) {
+					orb_copy(ORB_ID(takeoff_dynamic_point), takeoff_dynamic_point_sub, &_takeoff_dynamic_point_triplet);
+			}
+			if (fabs(distance) < 1000.0) {
+
+				if ((fabs(distance) > (double)takeoff_d_p_distance )/*|| (timestamp_break>50&&timestamp_break<1000000)*/)	{
+					_pos_sp_triplet_updated = true;
+
+					mission_item_s mission_item;
+					_mission.read_first_mission_item(&mission_item);
+					_pos_sp_triplet.current.lat = mission_item.lat;
+					_pos_sp_triplet.current.lon = mission_item.lon;
+					_pos_sp_triplet.current.valid = true;
+					takeoff_d_p_enable = 0;
+					param_set(param_find("TAKEOFF_D_P_EN"),&takeoff_d_p_enable);
+					mavlink_log_critical(&_mavlink_log_pub, "TAKEOFF_D_P_EN = 0, TAKEOFF_D_P End");
+
+				}	else if(!_takeoff_dynamic_point_triplet.enable)	{
+					_pos_sp_triplet_updated = true;
+
+					vehicle_attitude_s att;
+					static int att_sub = 0;
+					if (att_sub == 0) {
+						att_sub = orb_subscribe(ORB_ID(vehicle_attitude));
+					}	else {
+						orb_check(att_sub,&updated);
+						orb_copy(ORB_ID(vehicle_attitude), att_sub, &att);
+					}
+
+					uint64_t timestamp_now = att.timestamp/1000000;
+
+					if ((timestamp_now - timestamp_break) >= 1 && (timestamp_now - timestamp_break) < 10000000000) {
+
+						timestamp_break = timestamp_now;
+
+						waypoint_from_heading_and_distance( _home_pos.lat , _home_pos.lon, att.yaw  , takeoff_d_p_distance,
+								&lat,&lon);
+
+						_pos_sp_triplet.current.lat = lat;
+						_pos_sp_triplet.current.lon = lon;
+						_pos_sp_triplet.current.valid = true;
+
+						_takeoff_dynamic_point_triplet.enable = 0;
+						_takeoff_dynamic_point_triplet.lat = lat;
+						_takeoff_dynamic_point_triplet.lon = lon;
+						orb_publish(ORB_ID(takeoff_dynamic_point), _takeoff_dynamic_point_pub, &_takeoff_dynamic_point_triplet);
+						mavlink_log_critical(&_mavlink_log_pub, "takeoff_dynamic_point is changing lat and lon");
+					}
+
+				}	else /*if(distance>1 || airframe_distance<-1)*/	{
+						mavlink_log_critical(&_mavlink_log_pub, " _takeoff_dynamic_point_triplet.enable = 1,takeoff_dynamic_point do not chang");
+						}
+			}
+	}
+
+/****************/
+		
+		if (_pos_sp_triplet_updated) {
+			publish_position_setpoint_triplet();
+			_pos_sp_triplet_updated = false;
+		}
+		
 		if (_mission_result_updated) {
 			publish_mission_result();
 			_mission_result_updated = false;

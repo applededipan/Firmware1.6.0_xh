@@ -2132,17 +2132,19 @@ Mavlink::task_main(int argc, char *argv[])
 			takeoff_dynamic_point_s takeoff_point;
 			orb_copy(ORB_ID(takeoff_dynamic_point), takeoff_dynamic_point_sub, &takeoff_point);
 
-			mavlink_mission_item_t wp_buff;
-			wp_buff.param1 = 100004;
-			wp_buff.command = 500;
-			wp_buff.seq   =  0;
-			int x_x,y_y;
-			x_x = takeoff_point.lat*10000000;
-			y_y = takeoff_point.lon*10000000;
-			memcpy(&wp_buff.x , &x_x,4);
-			memcpy(&wp_buff.y , &y_y,4);
-
-			_mission_manager->send_handle_mission_item_ack(wp_buff);
+			if(!takeoff_point.enable)	{
+				mavlink_mission_item_t wp_buff;
+				wp_buff.param1 = 100004;
+				wp_buff.command = 500;
+				wp_buff.seq   =  0;
+				int x_x,y_y;
+				x_x = takeoff_point.lat*10000000;
+				y_y = takeoff_point.lon*10000000;
+				memcpy(&wp_buff.x , &x_x,4);
+				memcpy(&wp_buff.y , &y_y,4);
+		
+				_mission_manager->send_handle_mission_item_ack(wp_buff);
+			}
 		}
 		/* radio config check */
 		if (_uart_fd >= 0 && _radio_id != 0 && _rstatus.type == telemetry_status_s::TELEMETRY_STATUS_RADIO_TYPE_3DR_RADIO) {
