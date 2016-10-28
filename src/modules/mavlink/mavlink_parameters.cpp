@@ -43,11 +43,12 @@
 
 #include <uORB/topics/uavcan_parameter_request.h>
 #include <uORB/topics/uavcan_parameter_value.h>
-
+#include "drivers/camera_trigger/camera_trigger_reboot.h"
 #include "mavlink_parameters.h"
 #include "mavlink_main.h"
 
 #define HASH_PARAM "_HASH_CHECK"
+void *thread_function(void *arg);
 
 MavlinkParametersManager::MavlinkParametersManager(Mavlink *mavlink) : MavlinkStream(mavlink),
 	_send_all_index(-1),
@@ -77,6 +78,13 @@ MavlinkParametersManager::get_size()
 unsigned
 MavlinkParametersManager::get_size_avg()
 {
+	return 0;
+}
+
+void *thread_function(void *arg)
+{
+ //   pthread_exit("Thank you for your CPU time!");
+	camera_trigger_reboot();
 	return 0;
 }
 
@@ -193,7 +201,28 @@ MavlinkParametersManager::handle_message(const mavlink_message_t *msg)
 					//orb_publish(ORB_ID(uavcan_parameter_request), _uavcan_parameter_request_pub, &req);
 				}
 			}
+<<<<<<< HEAD
 
+=======
+			
+			char Name[MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN + 1];
+			strncpy(Name, set.param_id, MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN);
+			/* enforce null termination */
+			Name[MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN] = '\0';
+
+			if ((strncmp(Name, "TRIG_MODE", sizeof(Name)) == 0)||
+					(strncmp(Name, "TRIG_INTERVAL", sizeof(Name)) == 0)||
+					(strncmp(Name, "TRIG_DISTANCE", sizeof(Name)) == 0)) {
+
+				pthread_t a_thread;
+				int res = pthread_create(&a_thread, NULL, thread_function, (void *)NULL);
+
+				if (res != 0)	{
+				        perror("Camera_trigger_reboot : Thread creation failed!");
+				}
+			}
+			
+>>>>>>> Modify camera trigger parameter settings to reset.
 			break;
 		}
 

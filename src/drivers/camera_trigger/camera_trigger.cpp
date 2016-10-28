@@ -81,7 +81,7 @@
 #define TRIGGER_PIN_DEFAULT 1
 
 extern "C" __EXPORT int camera_trigger_main(int argc, char *argv[]);
-
+int camera_trigger_reboot();
 
 typedef enum {
 	CAMERA_INTERFACE_MODE_NONE = 0,
@@ -829,5 +829,28 @@ int camera_trigger_main(int argc, char *argv[])
 	}
 
 	return 0;
+}
+
+int camera_trigger_reboot()
+{
+
+	printf("this is camera_trigger.cpp reboot\n");
+	if (camera_trigger::g_camera_trigger != nullptr) {
+		PX4_WARN("already running");
+
+	    camera_trigger::g_camera_trigger->stop();
+	}
+
+	camera_trigger::g_camera_trigger = new CameraTrigger();
+
+	if (camera_trigger::g_camera_trigger == nullptr) {
+		PX4_WARN("alloc failed");
+		return 1;
+	}
+
+	camera_trigger::g_camera_trigger->start();
+
+		return 0;
+
 }
 
