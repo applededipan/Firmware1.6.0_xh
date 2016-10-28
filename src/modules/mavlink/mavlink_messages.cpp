@@ -2277,6 +2277,7 @@ protected:
 			for (unsigned i = 0; i < sizeof(msg.controls) / sizeof(msg.controls[0]); i++) {
 				msg.controls[i] = att_ctrl.control[i];
 			}
+
 			if(N==2){
 				uint16_t checksum=0xffff;
 				uint8_t len = sizeof(msg);
@@ -2304,11 +2305,13 @@ protected:
 				static int uart_fd = -1;
 
 				if(uart_fd < 0)
-					uart_fd = open(device_name, O_RDWR| O_NOCTTY | O_NONBLOCK);
+						uart_fd = open(device_name, O_RDWR| O_NOCTTY | O_NONBLOCK);
 				if(uart_fd > 0){
 						ssize_t tmp = write(uart_fd, &buf,sizeof(buf));
-						if(tmp < 0)
-								warnx("send ttyS6 erro!");
+#ifdef __PX4_POSIX
+						if (tmp != sizeof(buf))
+							 warnx("[%s] [%d] write error ",__FILE__,__LINE__);
+#endif
 					}
 //				if(uart_fd > 0)
 //           write(uart_fd, &msg.time_usec,sizeof(msg.time_usec));
