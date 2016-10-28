@@ -128,7 +128,12 @@ MavlinkMissionManager::init_offboard_mission()
 		if (ret > 0) {
 			_dataman_id = mission_state.dataman_id;
 			_count = mission_state.count;
-			_current_seq = mission_state.current_seq;
+			bool SET_MISSION_INDEX_INIT_flag=0;
+			param_get(param_find("MIS_INDEX_INIT"),&SET_MISSION_INDEX_INIT_flag);
+			if (SET_MISSION_INDEX_INIT_flag)
+					_current_seq = mission_state.current_seq;
+			else
+					_current_seq = 0;
 
 		} else if (ret == 0) {
 			_dataman_id = 0;

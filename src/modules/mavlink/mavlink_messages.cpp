@@ -2308,10 +2308,10 @@ protected:
 						uart_fd = open(device_name, O_RDWR| O_NOCTTY | O_NONBLOCK);
 				if(uart_fd > 0){
 						ssize_t tmp = write(uart_fd, &buf,sizeof(buf));
-#ifdef __PX4_POSIX
+
 						if (tmp != sizeof(buf))
 							 warnx("[%s] [%d] write error ",__FILE__,__LINE__);
-#endif
+
 					}
 //				if(uart_fd > 0)
 //           write(uart_fd, &msg.time_usec,sizeof(msg.time_usec));

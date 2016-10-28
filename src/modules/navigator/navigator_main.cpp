@@ -706,7 +706,7 @@ Navigator::task_main()
 
 				}	else /*if(distance>1 || airframe_distance<-1)*/	{
 						mavlink_log_critical(&_mavlink_log_pub, " _takeoff_dynamic_point_triplet.enable = 1,takeoff_dynamic_point do not chang");
-						}
+					}
 			}
 	}
 
