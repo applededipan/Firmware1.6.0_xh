@@ -2279,6 +2279,7 @@ protected:
 			}
 
 			if(N==2){
+#ifndef __PX4_POSIX
 				uint16_t checksum=0xffff;
 				uint8_t len = sizeof(msg);
 				uint8_t buf[6+len+2];
@@ -2308,7 +2309,7 @@ protected:
 						uart_fd = open(device_name, O_RDWR| O_NOCTTY | O_NONBLOCK);
 				if(uart_fd > 0)
 					  write(uart_fd, &buf,sizeof(buf));
-
+#endif
 //				if(uart_fd > 0)
 //           write(uart_fd, &msg.time_usec,sizeof(msg.time_usec));
 //		   	warnx("len :%d",sizeof(buf));
