@@ -46,7 +46,7 @@ CameraInterfacePWM::CameraInterfacePWM():
 		i++;
 	}
 
-	setup();
+	setup(1234,1234);
 }
 
 CameraInterfacePWM::~CameraInterfacePWM()
@@ -56,8 +56,10 @@ CameraInterfacePWM::~CameraInterfacePWM()
 	// up_pwm_servo_deinit();
 }
 
-void CameraInterfacePWM::setup()
+void CameraInterfacePWM::setup(int pins, int polarity)
 {
+	pins = pins;
+	polarity = polarity;
 	for (unsigned i = 0; i < sizeof(_pins) / sizeof(_pins[0]); i = i + 2) {
 		if (_pins[i] >= 0 && _pins[i + 1] >= 0) {
 			uint8_t pin_bitmask = (1 << _pins[i + 1]) | (1 << _pins[i]);

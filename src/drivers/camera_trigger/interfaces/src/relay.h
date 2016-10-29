@@ -28,7 +28,7 @@ public:
 
 private:
 
-	void setup();
+	void setup(int pins, int polarity);
 
 	param_t _p_pin;
 	param_t _p_polarity;

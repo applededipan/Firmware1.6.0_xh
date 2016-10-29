@@ -36,15 +36,34 @@ CameraInterfaceRelay::CameraInterfaceRelay():
 		i++;
 	}
 
-	setup();
+	setup(1234,1234);
 }
 
 CameraInterfaceRelay::~CameraInterfaceRelay()
 {
 }
 
-void CameraInterfaceRelay::setup()
+void CameraInterfaceRelay::setup(int pins, int polarity)
 {
+	if (pins != 1234 && polarity != 1234) {
+			unsigned i = 0;
+			int single_pin;
+			_polarity = polarity;
+			// Set all pins as invalid
+			for ( i = 0; i < sizeof(_pins) / sizeof(_pins[0]); i++) {
+				_pins[i] = -1;
+			}
+			i = 0;
+			while ((single_pin = pins % 10)) {
+				_pins[i] = single_pin - 1;
+				//printf("change: pins[%d]:%d\n",i,_pins[i]);
+				if (_pins[i] < 0 || _pins[i] >= static_cast<int>(sizeof(_gpios) / sizeof(_gpios[0]))) {
+					_pins[i] = -1;
+				} 
+			pins /= 10;
+			i++;
+		}
+	}
 	for (unsigned i = 0; i < sizeof(_pins) / sizeof(_pins[0]); i++) {
 		px4_arch_configgpio(_gpios[_pins[i]]);
 		px4_arch_gpiowrite(_gpios[_pins[i]], !_polarity);

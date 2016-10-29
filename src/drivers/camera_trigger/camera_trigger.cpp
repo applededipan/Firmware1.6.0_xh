@@ -63,6 +63,7 @@
 #include <uORB/topics/camera_trigger.h>
 #include <uORB/topics/sensor_combined.h>
 #include <uORB/topics/vehicle_command.h>
+#include <uORB/topics/parameter_update.h>
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/vehicle_global_position.h> //added by dzp 2016/8/24
 #include <uORB/topics/camera_feedback.h>         //added by dzp 2016/8/24 added a topic
@@ -163,7 +164,8 @@ private:
 	bool			_trigger_enabled;
 	math::Vector<2>		_last_shoot_position;
 	bool			_valid_position;
-
+	
+	int			_params_sub;
 	int			_vcommand_sub;
 	int			_vlposition_sub;
 	int         _vgposition_sub;       //added by dzp 2016/8/24
@@ -225,6 +227,11 @@ private:
 	 * Resets trigger
 	 */
 	static void	keep_alive_down(void *arg);
+	/**
+	 *	Update params 
+	 */
+	static void update_params(void *arg);
+
 
 };
 
@@ -256,6 +263,7 @@ CameraTrigger::CameraTrigger() :
 	_trigger_enabled(false),
 	_last_shoot_position(0.0f, 0.0f),
 	_valid_position(false),
+	_params_sub(-1),
 	_vcommand_sub(-1),
 	_vlposition_sub(-1),
 	_vgposition_sub(-1),
@@ -482,11 +490,70 @@ CameraTrigger::test()
 }
 
 void
+CameraTrigger::update_params(void *arg)
+{
+	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
+
+	//PX4_INFO("camera trigger update params");
+	param_get(trig->_p_activation_time, &trig->_activation_time);
+	param_get(trig->_p_interval, &trig->_interval);
+	param_get(trig->_p_distance, &trig->_distance);
+	param_get(trig->_p_mode, &trig->_mode);
+	param_get(trig->_p_interface, &trig->_camera_interface_mode);
+	
+	//PX4_INFO("activation_time:%f,interval_interval:%f,distance:%f,camera_interface_mode:%d,mode:%d",
+																						//(double)trig->_activation_time,
+																						//(double)trig->_interval,
+																						//(double)trig->_distance,
+																						// trig->_camera_interface_mode,trig->_mode);
+	if (trig->_camera_interface_mode == 1) {
+			int  pin_list = 0;
+		  int  polarity = 0;
+		
+		  param_t _p_pin = param_find("TRIG_PINS");
+			param_t _p_polarity = param_find("TRIG_POLARITY");
+			param_get(_p_pin, &pin_list);
+			param_get(_p_polarity, &polarity);
+			//PX4_INFO("camera_interface: pin_list:%d,_polarity:%d",pin_list,	polarity);	
+			trig->_camera_interface->setup(pin_list,polarity);																							
+	}
+	// need update trigger mode 
+ 
+	if (trig->_mode == 2) {
+		 	trig->control(true);
+	} else {
+		 trig->control(false);
+	}
+	
+	// Prevent camera from sleeping, if triggering is enabled
+	if (trig->_mode > 0 && trig->_mode < 4) {
+		 trig->keepAlive(true);
+
+	} else {
+		 trig->keepAlive(false);
+	}
+}
+
+void
 CameraTrigger::cycle_trampoline(void *arg)
 {
 
 	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
 
+	if ( trig->_params_sub < 0) {
+				trig->_params_sub = orb_subscribe(ORB_ID(parameter_update));
+		}
+		
+	/* Parameter update */
+	bool params_updated;
+	orb_check(trig->_params_sub, &params_updated);
+	
+	if (params_updated) {
+		struct parameter_update_s param_update;
+		orb_copy(ORB_ID(parameter_update), trig->_params_sub, &param_update); // XXX: is this actually necessary?
+
+		update_params(trig);
+	}
 /*********************************************************************************/
 	if (trig->_vgposition_sub < 0) {
 		trig->_vgposition_sub = orb_subscribe(ORB_ID(vehicle_global_position));
@@ -830,27 +897,3 @@ int camera_trigger_main(int argc, char *argv[])
 
 	return 0;
 }
-
-int camera_trigger_reboot()
-{
-
-	printf("this is camera_trigger.cpp reboot\n");
-	if (camera_trigger::g_camera_trigger != nullptr) {
-		PX4_WARN("already running");
-
-	    camera_trigger::g_camera_trigger->stop();
-	}
-
-	camera_trigger::g_camera_trigger = new CameraTrigger();
-
-	if (camera_trigger::g_camera_trigger == nullptr) {
-		PX4_WARN("alloc failed");
-		return 1;
-	}
-
-	camera_trigger::g_camera_trigger->start();
-
-		return 0;
-
-}
-

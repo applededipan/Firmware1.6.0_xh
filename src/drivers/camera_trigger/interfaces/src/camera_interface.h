@@ -54,12 +54,12 @@ public:
 	virtual int powerOff() { return -1; }
 
 
-protected:
+//protected:
 
 	/**
 	 * setup the interface
 	 */
-	virtual void setup() {};
+	virtual void setup(int,int) {};
 
 };
 #endif
