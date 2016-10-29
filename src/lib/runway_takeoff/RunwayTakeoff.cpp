@@ -64,6 +64,8 @@ RunwayTakeoff::RunwayTakeoff() :
 	_heading_mode(this, "HDG"),
 	_nav_alt(this, "NAV_ALT"),
 	_takeoff_throttle(this, "MAX_THR"),
+	_takeoff_throttle_min(this, "MIN_THR"),
+	_takeoff_throttle_time(this, "TIME_THR"),
 	_runway_pitch_sp(this, "PSP"),
 	_max_takeoff_pitch(this, "MAX_PITCH"),
 	_max_takeoff_roll(this, "MAX_ROLL"),
@@ -97,6 +99,11 @@ void RunwayTakeoff::update(float airspeed, float alt_agl,
 
 	switch (_state) {
 	case RunwayTakeoffState::THROTTLE_RAMP:
+		// add by ycl 20161029
+		_throttle_ramp_time =_takeoff_throttle_time.get()>2 ?
+				((double)_takeoff_throttle_time.get() * 1e6) :
+				_throttle_ramp_time;
+		// add end 		
 		if (hrt_elapsed_time(&_initialized_time) > _throttle_ramp_time) {
 			_state = RunwayTakeoffState::CLAMPED_TO_RUNWAY;
 		}
@@ -213,8 +220,9 @@ float RunwayTakeoff::getThrottle(float tecsThrottle)
 {
 	switch (_state) {
 	case RunwayTakeoffState::THROTTLE_RAMP: {
+			float nowThrottle = _manual_throttle<_takeoff_throttle_min.get()?_takeoff_throttle_min.get():_manual_throttle;
 			float throttle = hrt_elapsed_time(&_initialized_time) / (float)_throttle_ramp_time *
-					 _takeoff_throttle.get();
+					 (_takeoff_throttle.get() - nowThrottle) + nowThrottle;
 			return throttle < _takeoff_throttle.get() ?
 			       throttle :
 			       _takeoff_throttle.get();

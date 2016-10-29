@@ -70,7 +70,8 @@ public:
 
 	void init(float yaw, double current_lat, double current_lon);
 	void update(float airspeed, float alt_agl, double current_lat, double current_lon, orb_advert_t *mavlink_log_pub);
-
+	void set_manual_throttle(float throttle){_manual_throttle = throttle;} //add by ycl 20161029
+	
 	RunwayTakeoffState getState() { return _state; };
 	bool isInitialized() { return _initialized; };
 
@@ -102,11 +103,14 @@ private:
 	unsigned _throttle_ramp_time;
 	math::Vector<2> _start_wp;
 
+	float _manual_throttle; // add by ycl 20161029
 	/** parameters **/
 	control::BlockParamInt _runway_takeoff_enabled;
 	control::BlockParamInt _heading_mode;
 	control::BlockParamFloat _nav_alt;
 	control::BlockParamFloat _takeoff_throttle;
+	control::BlockParamFloat _takeoff_throttle_min;     //add by ycl 20161029
+	control::BlockParamFloat _takeoff_throttle_time;    //add by ycl 20161029
 	control::BlockParamFloat _runway_pitch_sp;
 	control::BlockParamFloat _max_takeoff_pitch;
 	control::BlockParamFloat _max_takeoff_roll;
