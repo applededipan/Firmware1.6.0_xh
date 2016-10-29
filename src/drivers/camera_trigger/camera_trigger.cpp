@@ -492,6 +492,7 @@ CameraTrigger::test()
 void
 CameraTrigger::update_params(void *arg)
 {
+#ifndef __PX4_POSIX
 	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
 
 	//PX4_INFO("camera trigger update params");
@@ -532,6 +533,7 @@ CameraTrigger::update_params(void *arg)
 	} else {
 		 trig->keepAlive(false);
 	}
+#endif
 }
 
 void
