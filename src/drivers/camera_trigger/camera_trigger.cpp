@@ -601,7 +601,7 @@ CameraTrigger::cycle_trampoline(void *arg)
 	// while the trigger is inactive it has to be ready
 	// to become active instantaneously
 	int poll_interval_usec = 10000;
-	#ifndef __PX4_NUTTX
+#ifndef __PX4_NUTTX
 	PX4_INFO("camera trigger thread start");
 	while(trig->_mode){
 

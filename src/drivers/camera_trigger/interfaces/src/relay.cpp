@@ -56,17 +56,15 @@ void CameraInterfaceRelay::setup(int pins, int polarity)
 			i = 0;
 			while ((single_pin = pins % 10)) {
 				_pins[i] = single_pin - 1;
-				//printf("change: pins[%d]:%d\n",i,_pins[i]);
-				if (_pins[i] < 0 || _pins[i] >= static_cast<int>(sizeof(_gpios) / sizeof(_gpios[0]))) {
-					_pins[i] = -1;
-				} 
+				printf("change: pins[%d]:%d\n",i,_pins[i]);
 			pins /= 10;
 			i++;
 		}
-	}
-	for (unsigned i = 0; i < sizeof(_pins) / sizeof(_pins[0]); i++) {
-		px4_arch_configgpio(_gpios[_pins[i]]);
-		px4_arch_gpiowrite(_gpios[_pins[i]], !_polarity);
+	} else {
+			for (unsigned i = 0; i < sizeof(_pins) / sizeof(_pins[0]); i++) {
+				px4_arch_configgpio(_gpios[_pins[i]]);
+				px4_arch_gpiowrite(_gpios[_pins[i]], !_polarity);
+			}
 	}
 }
 
