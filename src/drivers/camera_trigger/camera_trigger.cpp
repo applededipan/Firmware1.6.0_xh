@@ -819,9 +819,9 @@ CameraTrigger::cycle_trampoline(void *arg)
 					  	float dis = get_distance_to_next_waypoint(trig->_frist_point_lat,trig->_frist_point_lon,trig->_last_point_lat,trig->_last_point_lon);
 							trig->_is_frist_point = true;	
 							trig->_distance = distance;
-							distance = dis - trig->_waypoint_distance;
-							if (distance) {
-								trig->_trigger_count = distance / trig->_distance + 1;
+							dis_count = dis - trig->_waypoint_distance;
+							if (dis_count >= 0) {
+								trig->_trigger_count = dis_count / trig->_distance + 1;
 							} else { trig->_trigger_count = 0; }
 #ifdef  __CAM_TRIGGER_DEBUG
 							PX4_INFO("all dist:%f, frist dist:%f, dist:%f ,heading:%f.",(double)dis,(double)trig->_waypoint_distance,(double)distance,(double)trig->_heading);
