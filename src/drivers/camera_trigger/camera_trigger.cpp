@@ -805,22 +805,27 @@ CameraTrigger::cycle_trampoline(void *arg)
     		  	if ((dot - count) > 0.1f)
     		  			count += 1;
             trig->_trigger_count = count;
+            trig->_waypoint_distance = cmd.param2;        //set frist waypoint distance
 					  trig->_frist_point_lat = cmd.param3;
 				  	trig->_frist_point_lon = cmd.param4;
 				  	trig->_last_point_lat = cmd.param5;
-				  	trig->_last_point_lon = cmd.param6;
-				  	trig->_waypoint_distance = cmd.param2;        //set frist waypoint distance
+				  	trig->_last_point_lon = cmd.param6;			  
 				  	trig->_heading = cmd.param7;
 #ifdef __CAM_TRIGGER_DEBUG				
-					  PX4_INFO("frist lat:%f,frist lon:%f.",(double)trig->_frist_point_lat,(double)trig->_frist_point_lon);
-				  	PX4_INFO("last lat:%f,last lon:%f.",(double)trig->_last_point_lat,(double)trig->_last_point_lon);
-				  	PX4_INFO("frist dist:%f, dist:%f ,heading:%f.",(double)trig->_waypoint_distance,(double)distance,(double)trig->_heading);
+					  PX4_INFO("frist lat:%f,frist lon:%f,count:%d.",(double)trig->_frist_point_lat,(double)trig->_frist_point_lon,count);
+				  	PX4_INFO("last lat:%f,last lon:%f.",(double)trig->_last_point_lat,(double)trig->_last_point_lon);		  	
 #endif					
 					  if (distance > 0) {
 					  	float dis = get_distance_to_next_waypoint(trig->_frist_point_lat,trig->_frist_point_lon,trig->_last_point_lat,trig->_last_point_lon);
 							trig->_is_frist_point = true;	
 							trig->_distance = distance;
-							trig->_trigger_count = (dis - trig->_waypoint_distance) / trig->_distance;
+							distance = dis - trig->_waypoint_distance;
+							if (distance) {
+								trig->_trigger_count = distance / trig->_distance + 1;
+							} else { trig->_trigger_count = 0; }
+#ifdef  __CAM_TRIGGER_DEBUG
+							PX4_INFO("all dist:%f, frist dist:%f, dist:%f ,heading:%f.",(double)dis,(double)trig->_waypoint_distance,(double)distance,(double)trig->_heading);
+#endif
 							if (trig->_trigger_count) {
 								trig->_trigger_enabled = true;
 								// get the heading
@@ -829,7 +834,6 @@ CameraTrigger::cycle_trampoline(void *arg)
 								// get the next point
 								waypoint_from_heading_and_distance(trig->_frist_point_lat,trig->_frist_point_lon,
 																									 trig->_heading,trig->_waypoint_distance,&trig->_next_point_lat,&trig->_next_point_lon);        //get the next point way
-		
 
 #ifdef __CAM_TRIGGER_DEBUG
 							  PX4_INFO("get next waypoint: lat:%f,lon:%f,count:%d,heading:%f.",(double)trig->_next_point_lat,(double)trig->_next_point_lon,
