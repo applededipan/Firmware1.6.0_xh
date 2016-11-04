@@ -718,10 +718,10 @@ MavlinkMissionManager::handle_mission_item(const mavlink_message_t *msg)
 	mavlink_msg_mission_item_decode(msg, &wp);
 	
 	int x_x,y_y;
-
+  
 	memcpy(&x_x,&wp.x,4);
 	memcpy(&y_y,&wp.y,4);
-
+	
 	if (wp.command == 500) {
 		flag__1E7=1;
 		mavlink_msg_mission_item_send_struct(_mavlink->get_channel(), &wp);
@@ -729,38 +729,52 @@ MavlinkMissionManager::handle_mission_item(const mavlink_message_t *msg)
 			mavlink_mission_item_t  wp_div;
 
 		//	flag__setting=1;
-			for(int i=wp.param3;i<(int)wp.param3+(int)wp.param4;i++)
-			{
-				wp_div=read_mission_item( i-1);
+			for (int i=wp.param3;i<(int)wp.param3+(int)wp.param4;i++) {
+				wp_div = read_mission_item(i-1);	
+				if ( wp_div.command != MAV_CMD_DO_SET_CAM_TRIGG_DIST ) {
+			   	if(((int)(wp.param4)) == 1){
+						memcpy(&wp_div.x,&wp.x,4);
+						memcpy(&wp_div.y,&wp.y,4);
+						wp_div.z = wp.z;
+			  	}else{
+						int x_b1,y_b1;
+						int x_b2,y_b2;
 
-				if(((int)(wp.param4)) == 1){
+						memcpy(&x_b1,&wp_div.x,4);
+						memcpy(&y_b1,&wp_div.y,4);
+						memcpy(&x_b2,&wp.x,4);
+						memcpy(&y_b2,&wp.y,4);
 
-					memcpy(&wp_div.x,&wp.x,4);
-					memcpy(&wp_div.y,&wp.y,4);
-					wp_div.z = wp.z;
-				}else{
-					int x_b1,y_b1;
-					int x_b2,y_b2;
+						x_b1 += x_b2;
+						y_b1 += y_b2;
 
-					memcpy(&x_b1,&wp_div.x,4);
-					memcpy(&y_b1,&wp_div.y,4);
-					memcpy(&x_b2,&wp.x,4);
-					memcpy(&y_b2,&wp.y,4);
+						memcpy(&wp_div.x,&x_b1,4);
+						memcpy(&wp_div.y,&y_b1,4);
 
-					x_b1 += x_b2;
-					y_b1 += y_b2;
-
-					memcpy(&wp_div.x,&x_b1,4);
-					memcpy(&wp_div.y,&y_b1,4);
-
-					wp_div.z += wp.z;
-				}
+						wp_div.z += wp.z;
+				  }
 
 					memcpy(&x_x,&wp.x,4);
 					memcpy(&y_y,&wp.y,4);
+				} else {
+						int x_b2,y_b2;
 
-				write_mission_item( i-1,wp_div);
-			}
+						memcpy(&x_b2,&wp.x,4);
+						memcpy(&y_b2,&wp.y,4);
+
+						wp_div.param3 += (float)(x_b2/1e7);
+						wp_div.param4 += (float)(y_b2/1e7);
+						wp_div.x += (float)(x_b2/1e7);
+						wp_div.y += (float)(y_b2/1e7);
+				
+						int x,y;
+						x = int((double)wp_div.x*1e7);
+						y = int((double)wp_div.y*1e7);
+						memcpy(&wp_div.x,&x,4);
+				    memcpy(&wp_div.y,&y,4);
+				}
+				  write_mission_item(i-1,wp_div);
+			} 
 			//
 			update_active_mission(_dataman_id, _count, _current_seq);
 
@@ -769,21 +783,41 @@ MavlinkMissionManager::handle_mission_item(const mavlink_message_t *msg)
 		//	flag__setting=1;
 			mavlink_mission_item_t  wp_div;
 			for(int i=wp.param3;i<(int)wp.param3+(int)wp.param4;i++) {
-
 					int x_b1,x_b2,y_b1,y_b2;
 					wp_div = read_mission_item( i - 1);
+					if ( wp_div.command != MAV_CMD_DO_SET_CAM_TRIGG_DIST ) {
+						memcpy(&x_b1,&wp_div.x,4);
+						memcpy(&y_b1,&wp_div.y,4);
+						memcpy(&x_b2,&wp.x,4);
+						memcpy(&y_b2,&wp.y,4);
 
-					memcpy(&x_b1,&wp_div.x,4);
-					memcpy(&y_b1,&wp_div.y,4);
-					memcpy(&x_b2,&wp.x,4);
-					memcpy(&y_b2,&wp.y,4);
+						x_b1 = (x_b1-x_b2)*wp.param2 + x_b2;
+						y_b1 = (y_b1-y_b2)*wp.param2 + y_b2;
 
-					x_b1 = (x_b1-x_b2)*wp.param2 + x_b2;
-					y_b1 = (y_b1-y_b2)*wp.param2 + y_b2;
-
-					memcpy(&wp_div.x,&x_b1,4);
-					memcpy(&wp_div.y,&y_b1,4);
-
+						memcpy(&wp_div.x,&x_b1,4);
+						memcpy(&wp_div.y,&y_b1,4);
+					} else {
+						  memcpy(&x_b2,&wp.x,4);
+							memcpy(&y_b2,&wp.y,4);
+							x_b1 = (int)((double)wp_div.param3*1e7);
+							y_b1 = (int)((double)wp_div.param4*1e7);
+							
+							x_b1 = (x_b1-x_b2)*wp.param2 + x_b2;
+							y_b1 = (y_b1-y_b2)*wp.param2 + y_b2;
+							
+							wp_div.param3 = (x_b1 / 1e7);
+							wp_div.param4 = (y_b1 / 1e7);
+							
+							x_b1 = (int)((double)wp_div.x*1e7);
+							y_b1 = (int)((double)wp_div.y*1e7);
+							
+							x_b1 = (x_b1-x_b2)*wp.param2 + x_b2;
+							y_b1 = (y_b1-y_b2)*wp.param2 + y_b2;
+							
+							memcpy(&wp_div.x,&x_b1,4);
+						  memcpy(&wp_div.y,&y_b1,4);
+						  
+					}
 					write_mission_item(i-1,wp_div);
 			}
 
@@ -822,39 +856,67 @@ MavlinkMissionManager::handle_mission_item(const mavlink_message_t *msg)
 
 			for(int i=0;i<(int)wp.param4;i++) {
 				wp_div = read_mission_item( i-1);
+				if ( wp_div.command != MAV_CMD_DO_SET_CAM_TRIGG_DIST ) { 
+						memcpy(&x,&wp_div.x,4);
+						memcpy(&y,&wp_div.y,4);
 
+		        lat = x/10000000.0;
+				    lon = y/10000000.0;
+				
+				    map_projection_project(&hil_local_proj_ref, lat, lon, &x_float, &y_float);
 
-				memcpy(&x,&wp_div.x,4);
-				memcpy(&y,&wp_div.y,4);
+				    float x_b,y_b;
+				    x_b = ((double)x_float - (double)r_x_float)*(double)cos_angle - ((double)y_float 
+				    											 - (double)r_y_float)*(double)sin_angle + (double)r_x_float;
+				    y_b = ((double)y_float - (double)r_y_float)*(double)cos_angle + ((double)x_float
+				                           - (double)r_x_float)*(double)sin_angle +  (double)r_y_float;
 
-				lat = x/10000000.0;
-				lon = y/10000000.0;
+						map_projection_reproject(&hil_local_proj_ref, x_b, y_b , &lat, &lon);
 
-				map_projection_project(&hil_local_proj_ref, lat, lon, &x_float, &y_float);
+						x = ((double)lat)*10000000.0;
+				    y = ((double)lon)*10000000.0;
 
-				float x_b,y_b;
-				x_b = ((double)x_float - (double)r_x_float)*(double)cos_angle -
-					  ((double)y_float - (double)r_y_float)*(double)sin_angle +
-					  (double)r_x_float;
-				y_b = ((double)y_float - (double)r_y_float)*(double)cos_angle +
-						((double)x_float - (double)r_x_float)*(double)sin_angle +
-						(double)r_y_float;
+				    memcpy(&wp_div.x,&x,4);
+				    memcpy(&wp_div.y,&y,4);
+				} else {
+					  lat = wp_div.param3;
+					  lon = wp_div.param4;
+						map_projection_project(&hil_local_proj_ref, lat, lon, &x_float, &y_float);
 
-				map_projection_reproject(&hil_local_proj_ref, x_b, y_b , &lat, &lon);
+				    float x_b,y_b;
+				    x_b = ((double)x_float - (double)r_x_float)*(double)cos_angle - ((double)y_float 
+				    											 - (double)r_y_float)*(double)sin_angle + (double)r_x_float;
+				    y_b = ((double)y_float - (double)r_y_float)*(double)cos_angle + ((double)x_float
+				                           - (double)r_x_float)*(double)sin_angle +  (double)r_y_float;
+						map_projection_reproject(&hil_local_proj_ref, x_b, y_b , &lat, &lon);
 
-				x = ((double)lat)*10000000.0;
-				y = ((double)lon)*10000000.0;
+						wp_div.param3 = lat;
+					  wp_div.param4 = lon;
 
-				memcpy(&wp_div.x,&x,4);
-				memcpy(&wp_div.y,&y,4);
+						lat = wp_div.x;
+					  lon = wp_div.y;
+						map_projection_project(&hil_local_proj_ref, lat, lon, &x_float, &y_float);
+				    x_b = ((double)x_float - (double)r_x_float)*(double)cos_angle - ((double)y_float 
+				    											 - (double)r_y_float)*(double)sin_angle + (double)r_x_float;
+				    y_b = ((double)y_float - (double)r_y_float)*(double)cos_angle + ((double)x_float
+				                           - (double)r_x_float)*(double)sin_angle +  (double)r_y_float;
 
-				write_mission_item( i-1,wp_div);
+						map_projection_reproject(&hil_local_proj_ref, x_b, y_b , &lat, &lon);
+		
+						x = ((double)lat)*10000000.0;
+				    y = ((double)lon)*10000000.0;
+				    
+				    memcpy(&wp_div.x,&x,4);
+				    memcpy(&wp_div.y,&y,4);
+				}
+				
+				write_mission_item(i-1,wp_div);
 			}
 
 			update_active_mission(_dataman_id, _count, _current_seq);
 		//	send_handle_mission_item_ack(  &wp);
 		//	flag__setting=0;
-						return;
+			 return;
 		}
 	}
 
@@ -871,7 +933,6 @@ MavlinkMissionManager::handle_mission_item(const mavlink_message_t *msg)
 			flag__1E7 = 1;
 #ifdef frame_100
 			wp.frame = wp.frame - 100 ;
-
 #else
 			wp.frame = wp.frame - 10 ;
 #endif

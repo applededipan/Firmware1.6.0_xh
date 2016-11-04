@@ -809,18 +809,18 @@ CameraTrigger::cycle_trampoline(void *arg)
 				  	trig->_frist_point_lon = cmd.param4;
 				  	trig->_last_point_lat = cmd.param5;
 				  	trig->_last_point_lon = cmd.param6;
+				  	trig->_waypoint_distance = cmd.param2;        //set frist waypoint distance
 				  	trig->_heading = cmd.param7;
-#ifdef __CAM_TRIGGER_DEBUG
-					
+#ifdef __CAM_TRIGGER_DEBUG				
 					  PX4_INFO("frist lat:%f,frist lon:%f.",(double)trig->_frist_point_lat,(double)trig->_frist_point_lon);
 				  	PX4_INFO("last lat:%f,last lon:%f.",(double)trig->_last_point_lat,(double)trig->_last_point_lon);
 				  	PX4_INFO("frist dist:%f, dist:%f ,heading:%f.",(double)trig->_waypoint_distance,(double)distance,(double)trig->_heading);
 #endif					
 					  if (distance > 0) {
+					  	float dis = get_distance_to_next_waypoint(trig->_frist_point_lat,trig->_frist_point_lon,trig->_last_point_lat,trig->_last_point_lon);
 							trig->_is_frist_point = true;	
 							trig->_distance = distance;
-							trig->_waypoint_distance = cmd.param2;        //set frist waypoint distance
-			
+							trig->_trigger_count = (dis - trig->_waypoint_distance) / trig->_distance;
 							if (trig->_trigger_count) {
 								trig->_trigger_enabled = true;
 								// get the heading
