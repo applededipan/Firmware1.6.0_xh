@@ -804,7 +804,7 @@ CameraTrigger::cycle_trampoline(void *arg)
     		  	int count = dot;
     		  	if ((dot - count) > 0.1f)
     		  			count += 1;
-            trig->_trigger_count = count;
+            //trig->_trigger_count = count;
             trig->_waypoint_distance = cmd.param2;        //set frist waypoint distance
 					  trig->_frist_point_lat = cmd.param3;
 				  	trig->_frist_point_lon = cmd.param4;
@@ -821,10 +821,16 @@ CameraTrigger::cycle_trampoline(void *arg)
 							trig->_distance = distance;
 							dis_count = dis - trig->_waypoint_distance;
 							if (dis_count >= 0) {
-								trig->_trigger_count = dis_count / trig->_distance + 1;
+								dis_count /= trig->_distance;
+								trig->_trigger_count = dis_count;
+								if (dis_count - trig->_trigger_count > 0.5f)
+									trig->_trigger_count += 2;
+								else
+									trig->_trigger_count += 1;
+									
 							} else { trig->_trigger_count = 0; }
 #ifdef  __CAM_TRIGGER_DEBUG
-							PX4_INFO("all dist:%f, frist dist:%f, dist:%f ,heading:%f.",(double)dis,(double)trig->_waypoint_distance,(double)distance,(double)trig->_heading);
+							PX4_INFO("all dist:%f, frist dist:%f, dist:%f ,heading:%f ,count:%d.",(double)dis,(double)trig->_waypoint_distance,(double)distance,(double)trig->_heading,trig->_trigger_count);
 #endif
 							if (trig->_trigger_count) {
 								trig->_trigger_enabled = true;

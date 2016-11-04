@@ -1467,7 +1467,7 @@ public:
 	{
 #ifndef __PX4_POSIX
 		if(!_mavlink->get_mode()){
-		/*****************************************/
+
 					/* string to hold the path to the log */
 					char log_root[30] = "/fs/microsd";
 					char log_file_path[64] = "";
@@ -1494,14 +1494,6 @@ public:
 					char dstamp[22];
 					strftime(dstamp, sizeof(dstamp) - 1, "%Y-%m-%d",&tt);
 					sprintf(log_file_path,"%s/camera_%s.txt",log_root,dstamp);
-
-					/* create log dir */
-//					if(!opendir(log_file_path)){
-//					    mkdir_ret = mkdir(log_file_path, S_IRWXU | S_IRWXG | S_IRWXO);
-//					    printf("mkdir:%d\n",mkdir_ret);
-//					}
-//					if(!mkdir_ret){
-		//				warnx("mkdir success %d: %s", mkdir_ret,log_file_path);
 
 						struct stat buf;
 						if(::stat(log_file_path, &buf) == -1){
