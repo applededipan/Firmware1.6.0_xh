@@ -722,8 +722,7 @@ MavlinkMissionManager::handle_mission_item(const mavlink_message_t *msg)
 	memcpy(&x_x,&wp.x,4);
 	memcpy(&y_y,&wp.y,4);
 
-	if(wp.command == 500)
-	{
+	if (wp.command == 500) {
 		flag__1E7=1;
 		mavlink_msg_mission_item_send_struct(_mavlink->get_channel(), &wp);
 		if(((int)wp.param1 == (int)100002) && ((int)wp.param2 == (int)3))	{
@@ -766,13 +765,10 @@ MavlinkMissionManager::handle_mission_item(const mavlink_message_t *msg)
 			update_active_mission(_dataman_id, _count, _current_seq);
 
 			return;
-		}
-		else if(((int)wp.param1 == (int)100001))
-		{
+		}	else if (((int)wp.param1 == (int)100001))	{
 		//	flag__setting=1;
 			mavlink_mission_item_t  wp_div;
-			for(int i=wp.param3;i<(int)wp.param3+(int)wp.param4;i++)
-			{
+			for(int i=wp.param3;i<(int)wp.param3+(int)wp.param4;i++) {
 
 					int x_b1,x_b2,y_b1,y_b2;
 					wp_div = read_mission_item( i - 1);
@@ -797,7 +793,7 @@ MavlinkMissionManager::handle_mission_item(const mavlink_message_t *msg)
 		//	send_handle_mission_item_ack(  &wp);
 		//	flag__setting=0;
 			return;
-		}	else if(((int)wp.param1 == (int)100003)){
+		}	else if(((int)wp.param1 == (int)100003)) {
 		//	flag__setting=1;
 			int x,y;
 			int r_x,r_y;
@@ -824,8 +820,7 @@ MavlinkMissionManager::handle_mission_item(const mavlink_message_t *msg)
 			float r_y_float;
 			map_projection_project(&hil_local_proj_ref, lat, lon, &r_x_float, &r_y_float);
 
-			for(int i=0;i<(int)wp.param4;i++)
-			{
+			for(int i=0;i<(int)wp.param4;i++) {
 				wp_div = read_mission_item( i-1);
 
 
@@ -863,8 +858,7 @@ MavlinkMissionManager::handle_mission_item(const mavlink_message_t *msg)
 		}
 	}
 
-	if (CHECK_SYSID_COMPID_MISSION(wp))
-	{
+	if (CHECK_SYSID_COMPID_MISSION(wp)) {
 		//flag__setting=0;
 #define frame_100
 
@@ -882,9 +876,7 @@ MavlinkMissionManager::handle_mission_item(const mavlink_message_t *msg)
 			wp.frame = wp.frame - 10 ;
 #endif
 			wp.command = wp.command - 200;
-		}
-		else
-			flag__1E7=0;
+		}	else flag__1E7 = 0;
 			
 		if (_state == MAVLINK_WPM_STATE_GETLIST) {
 			_time_last_recv = hrt_absolute_time();
@@ -995,7 +987,7 @@ MavlinkMissionManager::handle_mission_clear_all(const mavlink_message_t *msg)
 }
 
 int
-MavlinkMissionManager::parse_mavlink_mission_item(const mavlink_mission_item_t *mavlink_mission_item, struct mission_item_s *mission_item)
+MavlinkMissionManager::parse_mavlink_mission_item(  mavlink_mission_item_t *mavlink_mission_item, struct mission_item_s *mission_item)
 {
 	if (mavlink_mission_item->frame == MAV_FRAME_GLOBAL ||
 		mavlink_mission_item->frame == MAV_FRAME_GLOBAL_RELATIVE_ALT) {
@@ -1099,7 +1091,6 @@ MavlinkMissionManager::parse_mavlink_mission_item(const mavlink_mission_item_t *
 
 		case MAV_CMD_DO_CHANGE_SPEED:
 		case MAV_CMD_DO_SET_SERVO:
-		case MAV_CMD_DO_LAND_START:
 		case MAV_CMD_DO_DIGICAM_CONTROL:
 		case MAV_CMD_DO_MOUNT_CONFIGURE:
 		case MAV_CMD_DO_MOUNT_CONTROL:
@@ -1156,7 +1147,6 @@ MavlinkMissionManager::format_mavlink_mission_item(const struct mission_item_s *
 
 		case NAV_CMD_DO_CHANGE_SPEED:
 		case NAV_CMD_DO_SET_SERVO:
-		case NAV_CMD_DO_LAND_START:
 		case NAV_CMD_DO_DIGICAM_CONTROL:
 		case NAV_CMD_DO_MOUNT_CONFIGURE:
 		case NAV_CMD_DO_MOUNT_CONTROL:

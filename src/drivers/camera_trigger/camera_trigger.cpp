@@ -58,7 +58,7 @@
 #include <systemlib/err.h>
 #include <systemlib/param/param.h>
 #include <systemlib/mavlink_log.h>
-
+#include <geo/geo.h>
 #include <uORB/uORB.h>
 #include <uORB/topics/camera_trigger.h>
 #include <uORB/topics/sensor_combined.h>
@@ -79,6 +79,13 @@
 #include "interfaces/src/pwm.h"
 #include "interfaces/src/relay.h"
 #endif
+
+//#define __USE_SETPOINT 
+#define __CAM_TRIGGER_DEBUG
+#ifdef __USE_SETPOINT
+#include <uORB/topics/position_setpoint_triplet.h>
+#endif
+
 #define TRIGGER_PIN_DEFAULT 1
 
 extern "C" __EXPORT int camera_trigger_main(int argc, char *argv[]);
@@ -119,11 +126,6 @@ public:
 	void		keepAlive(bool on);
 
 	/**
-	 * Toggle camera on/off functionality
-	 */
-	void        turnOnOff();
-
-	/**
 	 * Start the task.
 	 */
 	void		start();
@@ -147,8 +149,6 @@ private:
 
 	struct hrt_call		_engagecall;
 	struct hrt_call		_disengagecall;
-	struct hrt_call     _engage_turn_on_off_call;
-	struct hrt_call     _disengage_turn_on_off_call;
 	struct hrt_call		_keepalivecall_up;
 	struct hrt_call		_keepalivecall_down;
 
@@ -157,28 +157,48 @@ private:
 	int 			_gpio_fd;
 
 	int			_mode;
-	float			_activation_time;
-	float			_interval;
-	float 			_distance;
+	float		_activation_time;
+	float		_interval;
+	float 	_distance;
+	float   _waypoint_distance;   //line:frist waypoint distance
+	float   _out_distance;   			//line:last waypoint distance
+	float   _heading;
 	uint32_t 		_trigger_seq;
-	bool			_trigger_enabled;
+	bool		_trigger_enabled;     
+	bool    _start_flag;          //first mission waypoint flag; 
+	       
 	math::Vector<2>		_last_shoot_position;
-	bool			_valid_position;
+
+	bool	  _valid_position;
+	bool    _is_frist_point;
 	
+#ifdef __USE_SETPOINT
+	int			_pos_sp_triplet_sub;
+#endif	
+	int     _times;
+
 	int			_params_sub;
 	int			_vcommand_sub;
 	int			_vlposition_sub;
-	int         _vgposition_sub;       //added by dzp 2016/8/24
-	int         _vattitude_sub;        //added by dzp 2016/9/12
-	int         _airspeed_sub;
-	int32_t  _lat;
-	int32_t  _lng;
-	float  _alt_msl;
-	float  _alt_rel;
-	float  _roll;
-	float  _pitch;
-	float  _yaw;
-  float  _airspeed;
+	int     _vgposition_sub;       //added by dzp 2016/8/24
+	int     _vattitude_sub;        //added by dzp 2016/9/12
+	int     _airspeed_sub;
+	int     _trigger_count;        //count one trigger line camera trigger times;
+
+	double  _now_lat;
+	double  _now_lon;
+	double  _next_point_lat;
+	double  _next_point_lon;
+	double  _frist_point_lat;
+	double  _frist_point_lon;
+	double  _last_point_lat;
+	double  _last_point_lon;
+	float   _alt_msl;
+	float   _alt_rel;
+	float   _roll;
+	float   _pitch;
+	float   _yaw;
+  float   _airspeed;
   uint64_t _gps_time_usec;
 
 	orb_advert_t		_trigger_pub;
@@ -212,14 +232,6 @@ private:
 	 */
 	static void	disengage(void *arg);
 	/**
-	 * Fires on/off
-	 */
-	static void engange_turn_on_off(void *arg);
-	/**
-	 * Resets  on/off
-	 */
-	static void disengage_turn_on_off(void *arg);
-	/**
 	 * Fires trigger
 	 */
 	static void	keep_alive_up(void *arg);
@@ -231,8 +243,16 @@ private:
 	 *	Update params 
 	 */
 	static void update_params(void *arg);
-
-
+#ifdef __USE_SETPOINT
+	/**
+	 *	get last waypoint coordinate
+	 */
+	static void get_last_waypoint(void *arg);
+#endif
+	/**
+	 *	is next point reached 
+	 */
+	static void is_point_reached(void *arg);
 };
 
 //struct work_s CameraTrigger::_work;
@@ -250,27 +270,39 @@ CameraTrigger	*g_camera_trigger = nullptr;
 CameraTrigger::CameraTrigger() :
 	_engagecall {},
 	_disengagecall {},
-	_engage_turn_on_off_call {},
-	_disengage_turn_on_off_call {},
-	_keepalivecall_up {},
-	_keepalivecall_down {},
 	_gpio_fd(-1),
 	_mode(0),
 	_activation_time(0.5f /* ms */),
 	_interval(100.0f /* ms */),
 	_distance(25.0f /* m */),
+	_waypoint_distance(50.0f /* m */),
+	_out_distance(50.0f /* m */),
+	_heading(0.0f),
 	_trigger_seq(0),
 	_trigger_enabled(false),
+	_start_flag(false),
 	_last_shoot_position(0.0f, 0.0f),
 	_valid_position(false),
+	_is_frist_point(false),
+#ifdef __USE_SETPOINT	
+	_pos_sp_triplet_sub(-1),
+#endif
+	_times(-1),
 	_params_sub(-1),
 	_vcommand_sub(-1),
 	_vlposition_sub(-1),
 	_vgposition_sub(-1),
 	_vattitude_sub(-1),
 	_airspeed_sub(-1),
-	_lat(0),
-	_lng(0),
+	_trigger_count(-1),
+	_now_lat(0.0f),
+	_now_lon(0.0f),
+	_next_point_lat(0.0f),
+	_next_point_lon(0.0f),
+	_frist_point_lat(0.0f),
+	_frist_point_lon(0.0f),
+	_last_point_lat(0.0f),
+	_last_point_lon(0.0f),
 	_alt_msl(0.0f),
 	_alt_rel(0.0f),
 	_roll(0.0f),
@@ -333,6 +365,9 @@ CameraTrigger::CameraTrigger() :
 	struct camera_feedback_s	report2 = {};
 	_feedback_pub = orb_advertise(ORB_ID(camera_feedback), &report2);
 	
+#ifdef __USE_SETPOINT	
+	_pos_sp_triplet_sub = orb_subscribe(ORB_ID(position_setpoint_triplet));
+#endif
 #ifndef __PX4_NUTTX	
 	info();
 #endif
@@ -394,18 +429,6 @@ CameraTrigger::keepAlive(bool on)
 }
 
 void
-CameraTrigger::turnOnOff()
-{
-	// schedule trigger on and off calls
-	hrt_call_after(&_engage_turn_on_off_call, 0,
-		       (hrt_callout)&CameraTrigger::engange_turn_on_off, this);
-
-	// schedule trigger on and off calls
-	hrt_call_after(&_disengage_turn_on_off_call, 0 + (200 * 1000),
-		       (hrt_callout)&CameraTrigger::disengage_turn_on_off, this);
-}
-
-void
 CameraTrigger::shootOnce()
 {
 	// schedule trigger on and off calls
@@ -434,8 +457,7 @@ CameraTrigger::start()
 	}
 
 	// Prevent camera from sleeping, if triggering is enabled
-	if (_mode > 0 && _mode < 4) {
-		turnOnOff();
+	if (_mode > 0) {
 		keepAlive(true);
 
 	} else {
@@ -467,8 +489,6 @@ CameraTrigger::stop()
 #endif
 	hrt_cancel(&_engagecall);
 	hrt_cancel(&_disengagecall);
-	hrt_cancel(&_engage_turn_on_off_call);
-	hrt_cancel(&_disengage_turn_on_off_call);
 	hrt_cancel(&_keepalivecall_up);
 	hrt_cancel(&_keepalivecall_down);
 
@@ -485,7 +505,7 @@ CameraTrigger::test()
 	cmd.param5 = 1.0f;
 
 	orb_advert_t pub;
-	pub = orb_advertise_queue(ORB_ID(vehicle_command), &cmd, vehicle_command_s::ORB_QUEUE_LENGTH);
+	pub = orb_advertise(ORB_ID(vehicle_command), &cmd);
 	(void)orb_unadvertise(pub);
 }
 
@@ -536,6 +556,84 @@ CameraTrigger::update_params(void *arg)
 #endif
 }
 
+#ifdef __USE_SETPOINT
+void 
+CameraTrigger::get_last_waypoint(void *arg)
+{
+		CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
+		struct position_setpoint_triplet_s		_pos_sp_triplet;		/**< triplet of mission items */
+		
+		if (trig->_pos_sp_triplet_sub < 0)
+			trig->_pos_sp_triplet_sub = orb_subscribe(ORB_ID(position_setpoint_triplet));
+		for (unsigned i=0;i<3;i++) {	
+				/* check if there is a new setpoint */
+	  		bool pos_sp_triplet_updated = 0;
+	 			orb_check(trig->_pos_sp_triplet_sub, &pos_sp_triplet_updated);
+	  
+			  if (pos_sp_triplet_updated) {
+					orb_copy(ORB_ID(position_setpoint_triplet), trig->_pos_sp_triplet_sub, &_pos_sp_triplet);
+					trig->_last_point_lat = _pos_sp_triplet.current.lat;
+					trig->_last_point_lon = _pos_sp_triplet.current.lon;
+					float dist = get_distance_to_next_waypoint(trig->_frist_point_lat,trig->_frist_point_lon,
+																																		trig->_last_point_lat,trig->_last_point_lon);
+					
+					if (dist < 10.0f) {
+						PX4_INFO("retry to get the distance");
+						usleep(100000);
+						continue;
+					}	else {
+						break;
+					}
+				}		
+	}
+}
+#endif
+// judgment aleady reached the next point
+void
+CameraTrigger::is_point_reached(void *arg)
+{
+		CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
+		float x_previousmp,x_realp;
+		float y_previousmp,y_realp;
+		float distance1,distance2;
+		float costheta;
+		map_projection_reference_s hil_local_proj_ref;
+		map_projection_init(&hil_local_proj_ref,trig->_next_point_lat,trig->_next_point_lon); //current waypoint coordinate as zero point
+		map_projection_project(&hil_local_proj_ref,trig->_frist_point_lat,trig->_frist_point_lon, &x_previousmp, &y_previousmp);// waypoint coordinate
+	  map_projection_project(&hil_local_proj_ref,trig->_now_lat,trig->_now_lon, &x_realp, &y_realp);//real time coordinate
+	  distance1 = sqrt(x_previousmp*x_previousmp + y_previousmp*y_previousmp);
+	  distance2 = sqrt(x_realp*x_realp + y_realp*y_realp);
+	  costheta = (x_previousmp*x_realp + y_previousmp*y_realp)/(distance1*distance2);
+	  // reached the point
+	  if (costheta < 0) {
+	  		trig->shootOnce();
+	  		trig->_trigger_count--;
+	  		if (trig->_trigger_count) {
+	  			waypoint_from_heading_and_distance(trig->_next_point_lat,trig->_next_point_lon,trig->_heading,
+	  														trig->_distance,&trig->_next_point_lat,&trig->_next_point_lon); 
+				}
+#ifdef __CAM_TRIGGER_DEBUG
+			  PX4_INFO("get next waypoint: lat:%f,lon:%f,count:%d,heading:%f.",(double)trig->_next_point_lat,(double)trig->_next_point_lon,
+							  																														trig->_trigger_count,(double)trig->_heading);
+#endif
+	  }
+	  	
+	  if (trig->_trigger_count == 0) {
+			   trig->_trigger_enabled = false;
+			   trig->_is_frist_point = false;	
+#ifdef __USE_SETPOINT
+			   trig->_waypoint_distance = get_distance_to_next_waypoint(trig->_now_lat,trig->_now_lon,trig->_last_point_lat,trig->_last_point_lon);
+			
+#else
+			  trig->_waypoint_distance = 0;
+#endif
+				trig->_distance = 0.0f;
+				trig->_heading = 0.0f;
+				trig->_times = 0;
+    }
+		
+}
+
 void
 CameraTrigger::cycle_trampoline(void *arg)
 {
@@ -567,8 +665,8 @@ CameraTrigger::cycle_trampoline(void *arg)
 	/* set timestamp the instant before the trigger goes off */
 	trig->_gps_time_usec = gpos.time_utc_usec;
 //	printf("gps_usec:%llu \n",gpos.time_utc_usec);
-	trig->_lat = gpos.lat*10000000;
-	trig->_lng = gpos.lon*10000000;
+	trig->_now_lat = gpos.lat;
+	trig->_now_lon = gpos.lon;
 	trig->_alt_msl = gpos.alt;
 /*********************************************************************************/
 	if (trig->_vattitude_sub < 0) {
@@ -610,13 +708,11 @@ CameraTrigger::cycle_trampoline(void *arg)
 		}
 		orb_copy(ORB_ID(vehicle_global_position), trig->_vgposition_sub, &gpos);
 		trig->_gps_time_usec = gpos.timestamp;
-		//PX4_INFO("gps_usec:%llu",gpos.timestamp);
 	
 		/* set timestamp the instant before the trigger goes off */
-	
-		trig->_lat = gpos.lat*10000000;
-		trig->_lng = gpos.lon*10000000;
-		//PX4_INFO("lat:%llu,lng:%llu",trig->_lat,trig->_lng);
+		trig->_now_lat = gpos.lat;
+		trig->_now_lon = gpos.lon;
+
 		orb_check(trig->_vcommand_sub, &updated);
 #endif 
 
@@ -668,8 +764,6 @@ CameraTrigger::cycle_trampoline(void *arg)
 		
 		if (pos.xy_valid) {
 
-			bool turning_on = false;
-
 			if (updated && trig->_mode == 4) {
 
 				// Check update from command
@@ -684,7 +778,7 @@ CameraTrigger::cycle_trampoline(void *arg)
 						trig->keepAlive(true);
 						// Give the camera time to turn on, before starting to send trigger signals
 						poll_interval_usec = 5000000;
-						turning_on = true;
+						//turning_on = true;
 
 					} else if (cmd.param1 <= 0.0f && trig->_trigger_enabled) {
 						hrt_cancel(&(trig->_engagecall));
@@ -693,35 +787,91 @@ CameraTrigger::cycle_trampoline(void *arg)
 						trig->turnOnOff();
 					}
 #endif
-					trig->_trigger_enabled = cmd.param1 > 0.0f;
-					trig->_distance = cmd.param1;
-				}
-			}
+#ifdef __CAM_TRIGGER_DEBUG
+				  	PX4_INFO("-------------------------");
+					  PX4_INFO("param1:%f",(double)cmd.param1);
+				  	PX4_INFO("param2:%f",(double)cmd.param2);
+				  	PX4_INFO("param3:%f",(double)cmd.param3);
+				  	PX4_INFO("param4:%f",(double)cmd.param4);
+			  		PX4_INFO("param5:%f",(double)cmd.param5);
+			  		PX4_INFO("param6:%f",(double)cmd.param6);
+				  	PX4_INFO("param5:%f",(double)cmd.param7);
+				  	PX4_INFO("-------------------------");
+#endif
+            float dis_count = cmd.param1;
+            int distance = dis_count;
+            float dot = (dis_count - distance)*1000.0f;
+    		  	int count = dot;
+    		  	if ((dot - count) > 0.1f)
+    		  			count += 1;
+            trig->_trigger_count = count;
+					  trig->_frist_point_lat = cmd.param3;
+				  	trig->_frist_point_lon = cmd.param4;
+				  	trig->_last_point_lat = cmd.param5;
+				  	trig->_last_point_lon = cmd.param6;
+				  	trig->_heading = cmd.param7;
+#ifdef __CAM_TRIGGER_DEBUG
+					
+					  PX4_INFO("frist lat:%f,frist lon:%f.",(double)trig->_frist_point_lat,(double)trig->_frist_point_lon);
+				  	PX4_INFO("last lat:%f,last lon:%f.",(double)trig->_last_point_lat,(double)trig->_last_point_lon);
+				  	PX4_INFO("frist dist:%f, dist:%f ,heading:%f.",(double)trig->_waypoint_distance,(double)distance,(double)trig->_heading);
+#endif					
+					  if (distance > 0) {
+							trig->_is_frist_point = true;	
+							trig->_distance = distance;
+							trig->_waypoint_distance = cmd.param2;        //set frist waypoint distance
+			
+							if (trig->_trigger_count) {
+								trig->_trigger_enabled = true;
+								// get the heading
+								trig->_heading = get_bearing_to_next_waypoint(trig->_frist_point_lat,trig->_frist_point_lon,
+																														 trig->_last_point_lat,trig->_last_point_lon);
+								// get the next point
+								waypoint_from_heading_and_distance(trig->_frist_point_lat,trig->_frist_point_lon,
+																									 trig->_heading,trig->_waypoint_distance,&trig->_next_point_lat,&trig->_next_point_lon);        //get the next point way
+		
 
-			if ((trig->_trigger_enabled || trig->_mode < 4) && !turning_on) {
-
-				// Initialize position if not done yet
-				math::Vector<2> current_position(pos.x, pos.y);
-				//printf("dis mode on\n");
-				if (!trig->_valid_position) {
-					// First time valid position, take first shot
-					trig->_last_shoot_position = current_position;
-					trig->_valid_position = pos.xy_valid;
-					trig->shootOnce();
-				}
-
-				// Check that distance threshold is exceeded and the time between last shot is large enough
-				if ((trig->_last_shoot_position - current_position).length() >= trig->_distance) {
-					//trig->_last_shoot_position.print();
-					trig->shootOnce();
-					trig->_last_shoot_position = current_position;
-				}
-			}
-
-		} else {
-			poll_interval_usec = 100000;
-		}
-	}
+#ifdef __CAM_TRIGGER_DEBUG
+							  PX4_INFO("get next waypoint: lat:%f,lon:%f,count:%d,heading:%f.",(double)trig->_next_point_lat,(double)trig->_next_point_lon,
+							  																																		trig->_trigger_count,(double)trig->_heading);
+#endif
+							}				
+					  } else {
+							 trig->_trigger_enabled = false;
+						   trig->_is_frist_point = false;
+							 trig->_distance = 0.0f;
+							 trig->_next_point_lat = 0.0f;
+							 trig->_next_point_lon = 0.0f;
+					 }	
+				 }
+			 }
+			 if (trig->_trigger_enabled || trig->_mode < 4) {		
+						// Initialize position if not done yet
+			  	math::Vector<2> current_position(pos.x, pos.y);
+				 if (trig->_mode < 4) {
+						//printf("dis mode on\n");
+						if (!trig->_valid_position) {
+							// First time valid position, take first shot
+							trig->_last_shoot_position = current_position;
+							trig->_valid_position = pos.xy_valid;
+							trig->shootOnce();
+						}
+						
+						// Check that distance threshold is exceeded and the time between last shot is large enough
+						if ((trig->_last_shoot_position - current_position).length() >= trig->_distance) {
+							//trig->_last_shoot_position.print();
+							trig->shootOnce();
+							trig->_last_shoot_position = current_position;
+						}
+				 } else { 	
+						trig->is_point_reached(trig);		
+						poll_interval_usec = 10000;
+				 }
+			 }
+	   } else {
+				poll_interval_usec = 100000;
+	   }	
+	 }
 #ifdef __PX4_NUTTX
 	work_queue(LPWORK, &_work, (worker_t)&CameraTrigger::cycle_trampoline,
 		   camera_trigger::g_camera_trigger, USEC2TICK(poll_interval_usec));
@@ -770,8 +920,8 @@ CameraTrigger::engage(void *arg)
 #endif
 /**********************************************************************************************************************/
 	report2.timestamp = time_usec;
-	report2.lat = trig->_lat;
-	report2.lng = trig->_lng;
+	report2.lat = trig->_now_lat*10000000u;
+	report2.lng = trig->_now_lon*10000000u;
 	report2.alt_msl = trig->_alt_msl;
 	report2.alt_rel = trig->_alt_rel;
 	report2.roll = trig->_roll;
@@ -792,23 +942,6 @@ CameraTrigger::disengage(void *arg)
 
 	trig->_camera_interface->trigger(false);
 #endif
-}
-
-void
-CameraTrigger::engange_turn_on_off(void *arg)
-{
-
-	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
-
-	trig->_camera_interface->turn_on_off(true);
-}
-
-void
-CameraTrigger::disengage_turn_on_off(void *arg)
-{
-	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
-
-	trig->_camera_interface->turn_on_off(false);
 }
 
 void
