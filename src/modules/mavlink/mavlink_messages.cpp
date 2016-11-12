@@ -43,7 +43,7 @@
 #include <errno.h>
 
 #include "mavlink_main.h"
-#include "v1.0/ardupilotmega/mavlink_msg_camera_feedback.h" //added by dzp 2016/8/24
+#include "v2.0/ardupilotmega/mavlink_msg_camera_feedback.h" //added by dzp 2016/8/24
 #include "mavlink_messages.h"
 #include <v1.0/checksum.h>
 
