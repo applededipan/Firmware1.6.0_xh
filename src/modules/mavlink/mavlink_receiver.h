@@ -242,10 +242,10 @@ private:
 	double _time_offset_avg_alpha;
 	int64_t _time_offset;
 	int	_orb_class_instance;
-	
+
 	orb_advert_t _pos_sp_current_airspeed_pub;
 	position_setpoint_current_airspeed_s _pos_sp_current_airspeed;
-
+	
 	static constexpr unsigned MOM_SWITCH_COUNT = 8;
 
 	uint8_t _mom_switch_pos[MOM_SWITCH_COUNT];

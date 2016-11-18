@@ -404,7 +404,7 @@ MavlinkReceiver::handle_message_command_long(mavlink_message_t *msg)
 			orb_publish(ORB_ID(position_setpoint_current_airspeed), _pos_sp_current_airspeed_pub,
 					&_pos_sp_current_airspeed);
 
-		}else {
+		} else {
 
 			if (msg->sysid == mavlink_system.sysid && msg->compid == mavlink_system.compid) {
 				warnx("ignoring CMD with same SYS/COMP (%d/%d) ID",

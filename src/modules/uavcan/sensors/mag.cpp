@@ -72,8 +72,8 @@ int UavcanMagnetometerBridge::init()
 	uint32_t mag_use_id;
 	param_get(param_find("MAG_USE_ID"), &mag_use_id);
 	if(mag_use_id ==1){
-		PX4_INFO("init x_offset:%.2f,y_offset:%.2f,z_offset:%.2f",(double)_scale.x_offset,(double)_scale.y_offset,(double)_scale.z_offset);
-	  PX4_INFO("init x_scale:%.2f,y_scale:%.2f,z_scale:%.2f",(double)_scale.x_scale,(double)_scale.y_scale,(double)_scale.x_scale);
+		//PX4_INFO("init x_offset:%.2f,y_offset:%.2f,z_offset:%.2f",(double)_scale.x_offset,(double)_scale.y_offset,(double)_scale.z_offset);
+	  //PX4_INFO("init x_scale:%.2f,y_scale:%.2f,z_scale:%.2f",(double)_scale.x_scale,(double)_scale.y_scale,(double)_scale.x_scale);
 		res = _sub_mag.start(MagCbBinder(this, &UavcanMagnetometerBridge::mag_sub_cb));
 
 		if (res < 0) {

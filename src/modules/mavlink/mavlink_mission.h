@@ -64,29 +64,12 @@ enum MAVLINK_WPM_CODES {
 	MAVLINK_WPM_CODE_ENUM_END
 };
 
-class Mission;
+
 #define MAVLINK_MISSION_PROTOCOL_TIMEOUT_DEFAULT 5000000    ///< Protocol communication action timeout in useconds
 #define MAVLINK_MISSION_RETRY_TIMEOUT_DEFAULT 500000        ///< Protocol communication retry timeout in useconds
-#if 0
-typedef struct MAVLINK_PACKED __mavlink_mission_item_t_buff
-	{
-	 float param1; /*< PARAM1, see MAV_CMD enum*/
-	 float param2; /*< PARAM2, see MAV_CMD enum*/
-	 float param3; /*< PARAM3, see MAV_CMD enum*/
-	 float param4; /*< PARAM4, see MAV_CMD enum*/
-	 int32_t x; /*< PARAM5 / local: x position, global: latitude*/
-	 int32_t y; /*< PARAM6 / y position: global: longitude*/
-	 float   z; /*< PARAM7 / z position: global: altitude (relative or absolute, depending on frame.*/
-	 uint16_t seq; /*< Sequence*/
-	 uint16_t command; /*< The scheduled action for the MISSION. see MAV_CMD in common.xml MAVLink specs*/
-	 uint8_t target_system; /*< System ID*/
-	 uint8_t target_component; /*< Component ID*/
-	 uint8_t frame; /*< The coordinate system of the MISSION. see MAV_FRAME in mavlink_types.h*/
-	 uint8_t current; /*< false:0, true:1*/
-	 uint8_t autocontinue; /*< autocontinue to next wp*/
-	} mavlink_mission_item_t_buff;
-#endif
-class MavlinkMissionManager : public MavlinkStream {
+
+class MavlinkMissionManager : public MavlinkStream
+{
 public:
 	~MavlinkMissionManager();
 
@@ -100,7 +83,7 @@ public:
 		return "MISSION_ITEM";
 	}
 
-	uint8_t get_id()
+	uint16_t get_id()
 	{
 		return MAVLINK_MSG_ID_MISSION_ITEM;
 	}
@@ -127,15 +110,20 @@ private:
 
 	uint32_t		_action_timeout;
 	uint32_t		_retry_timeout;
+
+	bool			_int_mode;				///< Use accurate int32 instead of float
+
 	unsigned		_max_count;				///< Maximum number of mission items
 	unsigned		_filesystem_errcount;			///< File system error count
 
 	static int		_dataman_id;				///< Global Dataman storage ID for active mission
 	int			_my_dataman_id;				///< class Dataman storage ID
 	static bool		_dataman_init;				///< Dataman initialized
-	
+
 	static unsigned		_count;					///< Count of items in active mission
 	static int		_current_seq;				///< Current item sequence in active mission
+
+	static int		_last_reached;				///< Last reached waypoint in active mission (-1 means nothing reached)
 
 	int			_transfer_dataman_id;			///< Dataman storage ID for current transmission
 	unsigned		_transfer_count;			///< Items count in current transmission
@@ -183,7 +171,7 @@ private:
 
 	void send_mission_item(uint8_t sysid, uint8_t compid, uint16_t seq);
 
-	mavlink_mission_item_t read_mission_item( uint16_t seq );
+	mavlink_mission_item_t read_mission_item(uint16_t seq);
 	void write_mission_item( uint16_t seq,mavlink_mission_item_t  wp);
 
 	void send_mission_request(uint8_t sysid, uint8_t compid, uint16_t seq);
@@ -204,10 +192,14 @@ private:
 	void handle_mission_request_list(const mavlink_message_t *msg);
 
 	void handle_mission_request(const mavlink_message_t *msg);
+	void handle_mission_request_int(const mavlink_message_t *msg);
+	void handle_mission_request_both(const mavlink_message_t *msg);
 
 	void handle_mission_count(const mavlink_message_t *msg);
 
 	void handle_mission_item(const mavlink_message_t *msg);
+	void handle_mission_item_int(const mavlink_message_t *msg);
+	void handle_mission_item_both(const mavlink_message_t *msg);
 
 	void send_handle_mission_item_ack(mavlink_mission_item_t *wp_buff);
 
@@ -215,13 +207,22 @@ private:
 
 	/**
 	 * Parse mavlink MISSION_ITEM message to get mission_item_s.
+	 *
+	 * @param mavlink_mission_item pointer to mavlink_mission_item_t or mavlink_mission_item_int_t
+	 *			       depending on _int_mode
+	 * @param mission_item	       pointer to mission_item to construct
 	 */
 	int parse_mavlink_mission_item( mavlink_mission_item_t  *mavlink_mission_item, struct mission_item_s *mission_item);
 
 	/**
-	 * Format mission_item_s as mavlink MISSION_ITEM message.
+	 * Format mission_item_s as mavlink MISSION_ITEM(_INT) message.
+	 *
+	 * @param mission_item:		pointer to the existing mission item
+	 * @param mavlink_mission_item: pointer to mavlink_mission_item_t or mavlink_mission_item_int_t
+	 *				depending on _int_mode.
 	 */
-	int format_mavlink_mission_item(const struct mission_item_s *mission_item, mavlink_mission_item_t *mavlink_mission_item);
+	int format_mavlink_mission_item(const struct mission_item_s *mission_item,
+					mavlink_mission_item_t *mavlink_mission_item);
 
 protected:
 	explicit MavlinkMissionManager(Mavlink *mavlink);

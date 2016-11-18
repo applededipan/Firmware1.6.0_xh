@@ -126,6 +126,11 @@ public:
 	void		keepAlive(bool on);
 
 	/**
+	 * Toggle camera on/off functionality
+	 */
+	void        turnOnOff();
+
+	/**
 	 * Start the task.
 	 */
 	void		start();
@@ -149,6 +154,8 @@ private:
 
 	struct hrt_call		_engagecall;
 	struct hrt_call		_disengagecall;
+	struct hrt_call     _engage_turn_on_off_call;
+	struct hrt_call     _disengage_turn_on_off_call;
 	struct hrt_call		_keepalivecall_up;
 	struct hrt_call		_keepalivecall_down;
 
@@ -168,8 +175,8 @@ private:
 	bool    _start_flag;          //first mission waypoint flag; 
 	       
 	math::Vector<2>		_last_shoot_position;
+	bool		_valid_position;
 
-	bool	  _valid_position;
 	bool    _is_frist_point;
 	
 #ifdef __USE_SETPOINT
@@ -232,6 +239,14 @@ private:
 	 */
 	static void	disengage(void *arg);
 	/**
+	 * Fires on/off
+	 */
+	static void engange_turn_on_off(void *arg);
+	/**
+	 * Resets  on/off
+	 */
+	static void disengage_turn_on_off(void *arg);
+	/**
 	 * Fires trigger
 	 */
 	static void	keep_alive_up(void *arg);
@@ -270,6 +285,10 @@ CameraTrigger	*g_camera_trigger = nullptr;
 CameraTrigger::CameraTrigger() :
 	_engagecall {},
 	_disengagecall {},
+	_engage_turn_on_off_call {},
+	_disengage_turn_on_off_call {},
+	_keepalivecall_up {},
+	_keepalivecall_down {},
 	_gpio_fd(-1),
 	_mode(0),
 	_activation_time(0.5f /* ms */),
@@ -429,6 +448,18 @@ CameraTrigger::keepAlive(bool on)
 }
 
 void
+CameraTrigger::turnOnOff()
+{
+	// schedule trigger on and off calls
+	hrt_call_after(&_engage_turn_on_off_call, 0,
+		       (hrt_callout)&CameraTrigger::engange_turn_on_off, this);
+
+	// schedule trigger on and off calls
+	hrt_call_after(&_disengage_turn_on_off_call, 0 + (200 * 1000),
+		       (hrt_callout)&CameraTrigger::disengage_turn_on_off, this);
+}
+
+void
 CameraTrigger::shootOnce()
 {
 	// schedule trigger on and off calls
@@ -457,7 +488,8 @@ CameraTrigger::start()
 	}
 
 	// Prevent camera from sleeping, if triggering is enabled
-	if (_mode > 0) {
+	if (_mode > 0 && _mode < 4) {
+		turnOnOff();
 		keepAlive(true);
 
 	} else {
@@ -489,6 +521,8 @@ CameraTrigger::stop()
 #endif
 	hrt_cancel(&_engagecall);
 	hrt_cancel(&_disengagecall);
+	hrt_cancel(&_engage_turn_on_off_call);
+	hrt_cancel(&_disengage_turn_on_off_call);
 	hrt_cancel(&_keepalivecall_up);
 	hrt_cancel(&_keepalivecall_down);
 
@@ -505,7 +539,7 @@ CameraTrigger::test()
 	cmd.param5 = 1.0f;
 
 	orb_advert_t pub;
-	pub = orb_advertise(ORB_ID(vehicle_command), &cmd);
+	pub = orb_advertise_queue(ORB_ID(vehicle_command), &cmd, vehicle_command_s::ORB_QUEUE_LENGTH);
 	(void)orb_unadvertise(pub);
 }
 
@@ -654,7 +688,7 @@ CameraTrigger::cycle_trampoline(void *arg)
 
 		update_params(trig);
 	}
-/*********************************************************************************/
+
 	if (trig->_vgposition_sub < 0) {
 		trig->_vgposition_sub = orb_subscribe(ORB_ID(vehicle_global_position));
 	}
@@ -668,18 +702,18 @@ CameraTrigger::cycle_trampoline(void *arg)
 	trig->_now_lat = gpos.lat;
 	trig->_now_lon = gpos.lon;
 	trig->_alt_msl = gpos.alt;
-/*********************************************************************************/
+
 	if (trig->_vattitude_sub < 0) {
 			trig->_vattitude_sub = orb_subscribe(ORB_ID(vehicle_attitude));
 	}
-	struct vehicle_attitude_s vatt;
+	struct vehicle_attitude_s att;
+	orb_copy(ORB_ID(vehicle_attitude), trig->_vattitude_sub, &att);
+	matrix::Eulerf euler = matrix::Quatf(att.q);
+		
+	trig->_roll = euler.phi();
+	trig->_pitch = euler.theta();
+	trig->_yaw = euler.psi();
 
-	orb_copy(ORB_ID(vehicle_attitude), trig->_vattitude_sub, &vatt);
-
-	trig->_roll = vatt.roll;
-	trig->_pitch = vatt.pitch;
-	trig->_yaw = vatt.yaw;
-/*********************************************************************************/
 	if (trig->_airspeed_sub < 0) {
 				trig->_airspeed_sub = orb_subscribe(ORB_ID(airspeed));
 		}
@@ -688,7 +722,7 @@ CameraTrigger::cycle_trampoline(void *arg)
 	orb_copy(ORB_ID(airspeed), trig->_airspeed_sub, &airs);
 
 	trig->_airspeed = airs.true_airspeed_m_s;
-/*********************************************************************************/
+
 	if (trig->_vcommand_sub < 0) {
 		trig->_vcommand_sub = orb_subscribe(ORB_ID(vehicle_command));
 	}
@@ -760,9 +794,10 @@ CameraTrigger::cycle_trampoline(void *arg)
 		struct vehicle_local_position_s pos;
 
 		orb_copy(ORB_ID(vehicle_local_position), trig->_vlposition_sub, &pos);
-		trig->_alt_rel = pos.ref_alt;
-		
+
 		if (pos.xy_valid) {
+
+			//bool turning_on = false;
 
 			if (updated && trig->_mode == 4) {
 
@@ -895,7 +930,7 @@ CameraTrigger::cycle_trampoline(void *arg)
 void
 CameraTrigger::engage(void *arg)
 {
-	
+
 	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
 
 	struct camera_trigger_s	report = {};
@@ -951,7 +986,24 @@ CameraTrigger::disengage(void *arg)
 	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
 
 	trig->_camera_interface->trigger(false);
+}
 #endif
+
+void
+CameraTrigger::engange_turn_on_off(void *arg)
+{
+
+	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
+
+	trig->_camera_interface->turn_on_off(true);
+}
+
+void
+CameraTrigger::disengage_turn_on_off(void *arg)
+{
+	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
+
+	trig->_camera_interface->turn_on_off(false);
 }
 
 void
@@ -1042,3 +1094,4 @@ int camera_trigger_main(int argc, char *argv[])
 
 	return 0;
 }
+

@@ -696,8 +696,9 @@ Navigator::task_main()
 						uint64_t timestamp_now = att.timestamp/1000000;
 						if ((timestamp_now - timestamp_break) >= 1/*&& (timestamp_now - timestamp_break) < 10000000000*/)	{
 							timestamp_break = timestamp_now ;
-
-							waypoint_from_heading_and_distance( _home_pos.lat , _home_pos.lon, att.yaw  , takeoff_d_p_distance,
+							matrix::Eulerf euler = matrix::Quatf(att.q);
+							float yaw = euler.psi();
+							waypoint_from_heading_and_distance( _home_pos.lat , _home_pos.lon, yaw  , takeoff_d_p_distance,
 									&lat,&lon);
 
 							_pos_sp_triplet.current.lat = lat;
@@ -728,13 +729,13 @@ Navigator::task_main()
 //					mavlink_log_info(&_mavlink_log_pub, " takeoff_d_p_end = 0, takeoff_d_p_end is changed");
 			}
 		}
-/****************/
-		
+	
 		if (_pos_sp_triplet_updated) {
+			_pos_sp_triplet.timestamp = hrt_absolute_time();
 			publish_position_setpoint_triplet();
 			_pos_sp_triplet_updated = false;
 		}
-		
+
 		if (_mission_result_updated) {
 			publish_mission_result();
 			_mission_result_updated = false;

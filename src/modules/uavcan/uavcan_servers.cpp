@@ -291,7 +291,7 @@ pthread_addr_t UavcanServers::run(pthread_addr_t)
 	Copy any firmware bundled in the ROMFS to the appropriate location on the
 	SD card, unless the user has copied other firmware for that device.
 	*/
-	//unpackFwFromROMFS(UAVCAN_FIRMWARE_PATH, UAVCAN_ROMFS_FW_PATH);
+	unpackFwFromROMFS(UAVCAN_FIRMWARE_PATH, UAVCAN_ROMFS_FW_PATH);
 
 	/* the subscribe call needs to happen in the same thread,
 	 * so not in the constructor */
@@ -398,13 +398,8 @@ pthread_addr_t UavcanServers::run(pthread_addr_t)
 					 */
 					_param_index = 0;
 					_param_list_in_progress = true;
-<<<<<<< HEAD
 					_param_list_node_id = get_next_active_node_id(0);
 					_param_list_all_nodes = true;
-=======
-					_param_list_node_id = get_next_active_node_id(1);
-					_param_list_all_nodes = false;
->>>>>>> Modify UAVCAN influence mavlink passing parameters.
 
 					warnx("UAVCAN command bridge: starting global param list with node %hhu", _param_list_node_id);
 
@@ -1014,7 +1009,7 @@ void UavcanServers::unpackFwFromROMFS(const char* sd_path, const char* romfs_pat
 			}
 
 			struct dirent* src_fw_dirent = NULL;
-			while ((src_fw_dirent = readdir(src_ver_dir)) == NULL &&
+			while ((src_fw_dirent = readdir(src_ver_dir)) != NULL &&
 					!DIRENT_ISFILE(src_fw_dirent->d_type));
 
 			if (!src_fw_dirent) {

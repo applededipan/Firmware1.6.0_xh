@@ -45,7 +45,7 @@
 #include "mavlink_main.h"
 #include "v2.0/ardupilotmega/mavlink_msg_camera_feedback.h" //added by dzp 2016/8/24
 #include "mavlink_messages.h"
-#include <v1.0/checksum.h>
+#include <v2.0/checksum.h>
 
 #include <commander/px4_custom_mode.h>
 #include <drivers/drv_pwm_output.h>
@@ -613,6 +613,7 @@ protected:
 	void send(const hrt_abstime t)
 	{
 		struct vehicle_status_s status = {};
+		struct cpuload_s cpuload = {};
 		struct battery_status_s battery_status = {};
 
 		const bool updated_status = _status_sub->update(&status);
@@ -634,7 +635,7 @@ protected:
 			msg.onboard_control_sensors_present = status.onboard_control_sensors_present;
 			msg.onboard_control_sensors_enabled = status.onboard_control_sensors_enabled;
 			msg.onboard_control_sensors_health = status.onboard_control_sensors_health;
-			msg.load = status.load * 1000.0f;
+			msg.load = cpuload.load * 1000.0f;
 			msg.voltage_battery = (battery_status.connected) ? battery_status.voltage_filtered_v * 1000.0f : UINT16_MAX;
 			msg.current_battery = (battery_status.connected) ? battery_status.current_filtered_a * 100.0f : -1;
 			msg.battery_remaining = (battery_status.connected) ? battery_status.remaining * 100.0f : -1;
@@ -1443,15 +1444,15 @@ public:
 		return "CAMERA_FEEDBACK";
 	}
 
-	static uint8_t get_id_static()
+	static uint16_t get_id_static()
 	{
 		return MAVLINK_MSG_ID_CAMERA_FEEDBACK;
 	}
 
-    uint8_t get_id()
-    {
-        return get_id_static();
-    }
+  uint16_t get_id()
+  {
+    return get_id_static();
+  }
 
 	static MavlinkStream *new_instance(Mavlink *mavlink)
 	{
@@ -1518,9 +1519,6 @@ public:
 									seq,tstamp,(double)(msg.lat/10000000.0),(double)(msg.lng/10000000.0),(double)msg.alt_msl,(double)msg.alt_rel,(double)msg.foc_len,(double)msg.roll,(double)msg.pitch,(double)msg.yaw);
 							write(fd,&buffer[0],strlen(buffer) + 1);
 								seq++;
-
-							//fsync(fd);
-							//printf("%s",&buffer[0]);
 					   }
 					    close(fd);
 					  }
