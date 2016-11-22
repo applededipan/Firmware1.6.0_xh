@@ -172,7 +172,7 @@ MavlinkFTP::handle_message(const mavlink_message_t *msg)
 		warnx("FTP: received ftp protocol message target_system: %d", ftp_request.target_system);
 #endif
 
-		if (ftp_request.target_system == _getServerSystemId()) {
+		if (ftp_request.target_system == _mavlink->get_system_id()) {
 			_process_request(&ftp_request, msg->sysid);
 			return;
 		}
@@ -376,12 +376,12 @@ MavlinkFTP::_reply(mavlink_file_transfer_protocol_t *ftp_req)
 
 	ftp_req->target_network = 0;
 	ftp_req->target_component = 0;
-#ifdef MAVLINK_FTP_UNIT_TEST
+//#ifdef MAVLINK_FTP_UNIT_TEST
 	// Unit test hook is set, call that instead
-	_utRcvMsgFunc(ftp_req, _worker_data);
-#else
+//	_utRcvMsgFunc(ftp_req, _worker_data);
+//#else
 	mavlink_msg_file_transfer_protocol_send_struct(_mavlink->get_channel(), ftp_req);
-#endif
+//#endif
 
 }
 
