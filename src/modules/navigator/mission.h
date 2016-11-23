@@ -91,6 +91,10 @@ public:
 		MISSION_YAWMODE_BACK_TO_HOME = 3,
 		MISSION_YAWMODE_MAX = 4
 	};
+	
+	bool set_current_offboard_mission_index(unsigned index);
+
+	unsigned find_offboard_land_start();
 
 	bool read_first_mission_item(mission_item_s *mission_item);
 private:
@@ -165,6 +169,11 @@ private:
 	 */
 	void altitude_sp_foh_reset();
 
+	/**
+	 * Abort landing
+	 */
+	void do_abort_landing();
+
 	float get_absolute_altitude_for_item(struct mission_item_s &mission_item);
 
 	/**
@@ -210,9 +219,10 @@ private:
 	void set_mission_finished();
 
 	/**
-	 * Check wether a mission is ready to go
+	 * Check whether a mission is ready to go
 	 */
-	bool check_mission_valid();
+	void check_mission_valid(bool force);
+
 
 	/**
 	 * Reset offboard mission
@@ -230,6 +240,7 @@ private:
 	control::BlockParamInt _param_altmode;
 	control::BlockParamInt _param_yawmode;
 	control::BlockParamInt _param_force_vtol;
+	control::BlockParamFloat _param_fw_climbout_diff;
 
 	struct mission_s _onboard_mission;
 	struct mission_s _offboard_mission;
