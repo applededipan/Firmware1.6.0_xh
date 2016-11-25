@@ -1237,6 +1237,7 @@ MavlinkMissionManager::parse_mavlink_mission_item( mavlink_mission_item_t *mavli
 			break;
 			
 		case MAV_CMD_DO_SET_CAM_TRIGG_DIST:
+			mission_item->nav_cmd = NAV_CMD_DO_SET_CAM_TRIGG_DIST;
 			if (flag__1E7) {
 				int x_buff,y_buff;
 				memcpy(&x_buff,&mavlink_mission_item->x,4);

@@ -9,6 +9,7 @@ set(config_module_list
 	drivers/pwm_out_sim
 	drivers/camera_trigger
 	drivers/vmount
+
 	platforms/common
 	platforms/posix/drivers/accelsim
 	platforms/posix/drivers/adcsim

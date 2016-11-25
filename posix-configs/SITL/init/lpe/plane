@@ -28,6 +28,11 @@ param set FW_THR_IDLE 0.8
 param set EKF2_GBIAS_INIT 0.01
 param set EKF2_ANGERR_INIT 0.01
 param set EKF2_MAG_TYPE 1
+param set TRIG_MODE 4
+param set TRIG_DISTANCE 25.0
+param set TRIG_INTERVAL 40
+param set TRIG_ACT_TIME 10 0
+param set TRIG_INTERFACE 0
 replay tryapplyparams
 simulator start -s
 rgbledsim start
@@ -62,3 +67,4 @@ mavlink stream -r 10 -s OPTICAL_FLOW_RAD -u 14556
 sdlog2 start -r 200 -e -t -a
 mavlink boot_complete
 replay trystart
+camera_trigger start
