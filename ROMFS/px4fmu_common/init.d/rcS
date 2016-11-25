@@ -942,6 +942,14 @@ fi
 # XXX potentially unset all script variables.
 unset TUNE_ERR
 
+if param greater UAVCAN_ENABLE 0
+then
+		if uavcan start fw
+		then	
+		echo "[init] start uavcan server..."
+ 	  fi
+fi
+
 # Boot is complete, inform MAVLink app(s) that the system is now fully up and running
 mavlink boot_complete
 

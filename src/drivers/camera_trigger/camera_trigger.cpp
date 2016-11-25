@@ -986,24 +986,28 @@ CameraTrigger::disengage(void *arg)
 	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
 
 	trig->_camera_interface->trigger(false);
-}
 #endif
+}
+
 
 void
 CameraTrigger::engange_turn_on_off(void *arg)
 {
-
+#ifdef __PX4_NUTTX
 	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
 
 	trig->_camera_interface->turn_on_off(true);
+#endif
 }
 
 void
 CameraTrigger::disengage_turn_on_off(void *arg)
 {
+#ifdef __PX4_NUTTX
 	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
 
 	trig->_camera_interface->turn_on_off(false);
+#endif
 }
 
 void
