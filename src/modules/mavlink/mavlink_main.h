@@ -456,7 +456,7 @@ protected:
 	Mavlink			*next;
 
 private:
-	int 		takeoff_dynamic_point_sub;
+	int 		takeoff_dynamic_point_sub = 0;
 	int			_instance_id;
 
 	orb_advert_t		_mavlink_log_pub;
