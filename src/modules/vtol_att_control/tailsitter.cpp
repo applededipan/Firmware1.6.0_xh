@@ -73,7 +73,7 @@ Tailsitter::Tailsitter(VtolAttitudeControl *attc) :
 	_params_handles_tailsitter.airspeed_trans = param_find("VT_ARSP_TRANS");
 	_params_handles_tailsitter.airspeed_blend_start = param_find("VT_ARSP_BLEND");
 	_params_handles_tailsitter.elevons_mc_lock = param_find("VT_ELEV_MC_LOCK");
-
+    _params_handles_tailsitter.vtol_btrans_thr = param_find("VT_B_TRANS_THR"); // apple
 }
 
 Tailsitter::~Tailsitter()
@@ -107,6 +107,10 @@ Tailsitter::parameters_update()
 	param_get(_params_handles_tailsitter.airspeed_blend_start, &v);
 	_params_tailsitter.airspeed_blend_start = v;
 
+	/* vtol back transition thr */
+	param_get(_params_handles_tailsitter.vtol_btrans_thr, &v); // apple 2016/11/26
+	_params_tailsitter.vtol_btrans_thr = math::constrain(v, 0.0f, 1.0f);
+	
 	/* vtol lock elevons in multicopter */
 	param_get(_params_handles_tailsitter.elevons_mc_lock, &l);
 	_params_tailsitter.elevons_mc_lock = l;
@@ -326,7 +330,13 @@ void Tailsitter::update_transition_state()
 		_v_att_sp->pitch_body = math::constrain(_v_att_sp->pitch_body , -2.0f , PITCH_TRANSITION_BACK + 0.2f);
 
 		//  throttle value is decreesed
-		_v_att_sp->thrust = _thrust_transition_start * 0.9f;
+		if (_params_tailsitter.vtol_btrans_thr <= 0.0f) { // apple 2016/11/26
+			_v_att_sp->thrust = _thrust_transition_start * 0.9f;
+			
+		} else {			
+			_v_att_sp->thrust = _thrust_transition_start * _params_tailsitter.vtol_btrans_thr;
+			
+		}
 
 		/** keep yaw disabled */
 		_mc_yaw_weight = 0.0f;
