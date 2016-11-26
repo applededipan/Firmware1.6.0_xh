@@ -462,14 +462,21 @@ VtolAttitudeControl::handle_command()
  * Returns true if fixed-wing mode is requested.
  * Changed either via switch or via command.
  */
-bool
+char
 VtolAttitudeControl::is_fixed_wing_requested()
 {
-	bool to_fw = false;
+	char to_fw = false;
 
 	if (_manual_control_sp.transition_switch != manual_control_setpoint_s::SWITCH_POS_NONE &&
 	    _v_control_mode.flag_control_manual_enabled) {
-		to_fw = (_manual_control_sp.transition_switch == manual_control_setpoint_s::SWITCH_POS_ON);
+			if (_manual_control_sp.transition_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
+				// force to fw_mode 
+				to_fw = 2; 
+				
+			} else if (_manual_control_sp.transition_switch == manual_control_setpoint_s::SWITCH_POS_MIDDLE) {
+				// normal transition to fw_mode 
+				to_fw = 1; 
+			}
 
 	} else {
 		// listen to transition commands if not in manual or mode switch is not mapped
