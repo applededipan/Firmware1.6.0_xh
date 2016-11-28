@@ -205,6 +205,9 @@ private:
 
 	void handle_mission_clear_all(const mavlink_message_t *msg);
 
+	void coordinate_transformation(const mavlink_message_t *msg);
+	
+	void architecture_camera_trigger(void);
 	/**
 	 * Parse mavlink MISSION_ITEM message to get mission_item_s.
 	 *

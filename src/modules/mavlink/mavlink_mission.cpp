@@ -285,6 +285,10 @@ MavlinkMissionManager::send_mission_item(uint8_t sysid, uint8_t compid, uint16_t
 			wp.seq = seq;
 			wp.current = (_current_seq == seq) ? 1 : 0;
 
+			int x_x,y_y;
+			memcpy(&x_x,&wp.x,4);
+			memcpy(&y_y,&wp.y,4);
+
 			mavlink_msg_mission_item_send_struct(_mavlink->get_channel(), &wp);
 
 			if (_verbose) {
@@ -768,6 +772,408 @@ MavlinkMissionManager::handle_mission_count(const mavlink_message_t *msg)
 	}
 }
 
+void 
+MavlinkMissionManager::architecture_camera_trigger(void)
+{
+		mavlink_mission_item_t  wp_div;
+		double origin_lat = 0.0f, origin_lon = 0.0f;
+		double first_point_lat = 0.0f, first_point_lon = 0.0f;
+		double last_point_lat = 0.0f, last_point_lon = 0.0f;
+		double next_point_lat = 0.0f, next_point_lon = 0.0f;
+		float heading = 0.0f;
+		float bearing = 0.0f;
+		float total_dis = 0.0f;
+		float first_point_dis = 0.0f;
+		float last_point_dis = 180.0f;
+		float distance = 180.0f;
+		bool first_camera_waypoint = false;
+		//bool start_rotate = false;
+		int count = 0;
+		for (int i=0;i<_count;i++) {
+			int lat = 0, lon = 0;
+			float rem = 0.0f;
+			wp_div = read_mission_item(i);	
+			int div_dis = wp_div.param1;
+			//printf("i = %d,cmd=%d,%d,%s\n",i,wp_div.command,__LINE__,__FILE__);
+			if (wp_div.command == MAV_CMD_DO_SET_CAM_TRIGG_DIST && div_dis) {
+				//printf("%d,%s\n",__LINE__,__FILE__);
+				if (!first_camera_waypoint) {
+					first_point_dis = wp_div.param2;
+					last_point_dis = wp_div.param2;
+					distance = wp_div.param2;
+					//first_camera_waypoint = true;
+				}
+				div_dis = wp_div.param1; // camera trigger spacing
+				memcpy(&lat,&wp_div.x,4);
+				memcpy(&lon,&wp_div.y,4);
+				first_point_lat = wp_div.param3;
+				first_point_lon = wp_div.param4;
+				last_point_lat = lat / 1e7;
+				last_point_lon = lon / 1e7;
+				total_dis = get_distance_to_next_waypoint(first_point_lat,first_point_lon,last_point_lat,last_point_lon);
+				//PX4_INFO("i:%d,first_point_lat:%f,first_point_lon:%f,last_point_lat:%f,last_point_lon:%f",i,(double)first_point_lat,(double)first_point_lon,(double)last_point_lat,(double)last_point_lon);
+				if (total_dis - first_point_dis >= last_point_dis) {  //
+					first_camera_waypoint = true;
+					if (origin_lat < (double)0.000001f && origin_lon < (double)0.000001f) {
+						count = (total_dis - last_point_dis - first_point_dis) / div_dis;
+						rem = total_dis - last_point_dis - first_point_dis - count*div_dis;
+						if (div_dis - rem < 5.0f) 
+								count++;
+					  bearing = get_bearing_to_next_waypoint(first_point_lat,first_point_lon,last_point_lat,last_point_lon);
+						waypoint_from_heading_and_distance(first_point_lat,first_point_lon,bearing,(first_point_dis + count * div_dis),&next_point_lat,&next_point_lon);
+						waypoint_from_heading_and_distance(first_point_lat,first_point_lon,bearing,first_point_dis,&origin_lat,&origin_lon);
+						  //PX4_INFO("i=%d,count:%d,heading:%f,origin_lat:%f,origin_lon:%f",i,count,(double)heading,(double)origin_lat,(double)origin_lon);
+					}	else {
+						heading = get_bearing_to_next_waypoint(first_point_lat,first_point_lon,last_point_lat,last_point_lon);
+						if ( fabs(heading - bearing) < (double)1.6f && fabs(heading - bearing) > (double)1.5f) { //The architecture of lines
+							first_point_dis = distance;
+							last_point_dis = distance;
+							wp_div.param2 = distance;
+							count = (total_dis - last_point_dis - first_point_dis) / div_dis;
+							rem = total_dis - last_point_dis - first_point_dis - count*div_dis;
+							if (div_dis - rem < 5.0f) 
+								count++;
+							waypoint_from_heading_and_distance(first_point_lat,first_point_lon,heading,(first_point_dis + count * div_dis),&next_point_lat,&next_point_lon);
+						 
+						} else {
+							map_projection_reference_s hil_local_proj_ref;
+							map_projection_init(&hil_local_proj_ref, origin_lat, origin_lon);
+							double angle =  - heading;
+							float f_x,f_y,l_x,l_y;
+							float f_rx,f_ry,l_rx,l_ry;
+							float l_cx = 0.0f,l_cy = 0.0f;
+							map_projection_project(&hil_local_proj_ref, first_point_lat, first_point_lon, &f_x, &f_y);
+							map_projection_project(&hil_local_proj_ref, last_point_lat, last_point_lon, &l_x, &l_y);
+							//PX4_INFO("f_x:%f,f_y:%f,l_x:%f,l_y:%f",(double)f_x,(double)f_y,(double)l_x,(double)l_y);
+							f_rx = (double)f_x * cos(angle) - (double)f_y * sin(angle);  // rotating x
+							f_ry = (double)f_x * sin(angle) + (double)f_y * cos(angle);  // rotating y
+							l_rx = (double)l_x * cos(angle) - (double)l_y * sin(angle);  // rotating x
+							l_ry = (double)l_x * sin(angle) + (double)l_y * cos(angle);  // rotating y
+							
+							//math::Vector<2> first_position(f_rx, f_ry);
+							//math::Vector<2> last_position(l_rx, l_ry);
+							//PX4_INFO("heading:%f,f_rx:%f,f_ry:%f,l_rx:%f,l_ry:%f,total_dis:%f, -- %f",(double)heading,(double)f_rx,(double)f_ry,(double)l_rx,(double)l_ry,(double)total_dis,(double)(first_position - last_position).length());
+							first_point_dis = fabs(f_rx);
+							last_point_dis = fabs(l_rx);
+							PX4_INFO("i=%d,f_rx:%f,l_rx:%f,first_point_dis:%f,last_point_dis:%f,total_dis:%f",i,(double)f_rx,(double)l_rx,(double)first_point_dis,(double)last_point_dis,(double)total_dis);
+							float symbol = f_rx * l_rx;
+							if (symbol < 0.0001f) {
+								//first point
+								if (first_point_dis >= distance) {
+									count = (first_point_dis - distance) / div_dis;
+									rem = fmod((first_point_dis - distance),div_dis);
+									PX4_INFO("first rem:%f",(double)rem);
+									if(div_dis - rem <= 5.0f) { //if remaining 5 meters
+										count++;
+										wp_div.param2 = distance - (div_dis - rem);
+									} else { wp_div.param2 = distance + rem; }
+								} else {
+									if (distance - first_point_dis <= 5.0f)
+										wp_div.param2 = first_point_dis;
+									else{
+										//wp_div.param2 = first_point_dis + div_dis;
+										count = (distance - first_point_dis) / div_dis + 1;
+										wp_div.param2 = first_point_dis + count * div_dis;
+									}
+								}
+								//last point
+								if (last_point_dis >= distance) {
+									count = (last_point_dis - distance) / div_dis;
+									rem = fmod((last_point_dis - distance),div_dis);
+								  PX4_INFO("last rem:%f",(double)rem);
+									if (div_dis - rem <= 5.0f) { //if remaining 5 meters
+											count++;
+											last_point_dis = distance - (div_dis - rem);
+									} else { last_point_dis = distance + rem;	}
+								} else {
+									if (distance - last_point_dis > 5.0f) {
+										count = (distance - last_point_dis) / div_dis + 1;
+										last_point_dis +=  count * div_dis;
+									}
+								}
+								l_cx = ((l_rx > 0) ? (l_rx - last_point_dis) : (l_rx + last_point_dis));
+								l_cy = l_ry;
+								f_ry = f_ry;
+								//PX4_INFO("l_cx:%f",(double)l_cx);
+							} else { // On the right or left of zero
+								if (first_point_dis > last_point_dis) {
+									if (first_point_dis >= distance) {
+										count = (first_point_dis - distance) / div_dis;
+										rem = fmod((first_point_dis - distance),div_dis);
+										PX4_INFO("first rem:%f",(double)rem);
+										if (div_dis - rem <= 5.0f) { //if remaining 5 meters
+											count++;
+											wp_div.param2 = distance - (div_dis - rem);
+										} else { wp_div.param2 = distance + rem; }
+									} else { wp_div.param2 = distance; }
+								  //last point
+									count = (last_point_dis + distance) / div_dis;
+									rem = fmod((last_point_dis + distance),div_dis);
+									PX4_INFO("last rem:%f",(double)rem);
+							 		if (div_dis - rem > 5.0f) { 
+							  		count++;
+							  		last_point_dis = count * div_dis ;
+							  	} else { last_point_dis = count * div_dis - (div_dis - rem); }
+								//last_point_dis = count * div_dis ;
+									l_cx = ((l_rx > 0) ? (l_rx + last_point_dis) : (l_rx - last_point_dis));
+							  	last_point_dis -= distance;
+									l_cy = l_ry;
+									f_ry = f_ry;
+							  } else {
+								  //first point
+									count = (first_point_dis + distance) / div_dis;
+									rem = fmod((last_point_dis + distance),div_dis);
+									PX4_INFO("first rem:%f",(double)rem);
+							 		if (div_dis - rem > 5.0f) { 
+							  		count++;
+							  		wp_div.param2 = count * div_dis - first_point_dis ;
+							  	} else {
+							  		wp_div.param2 = count * div_dis - first_point_dis - (div_dis - rem);
+							  	}
+							  	if (last_point_dis >= distance) {
+										count = (last_point_dis - distance) / div_dis;
+										rem = fmod((last_point_dis - distance),div_dis);
+										PX4_INFO("last rem:%f",(double)rem);
+										if (div_dis - rem <= 5.0f) { //if remaining 5 meters
+											count++;
+											last_point_dis = distance - (div_dis - rem);
+										} else { last_point_dis = distance + rem; }
+									} else { last_point_dis = distance;	}
+									l_cx = ((l_rx > 0) ? (l_rx - last_point_dis) : (l_rx + last_point_dis));
+							  	//last_point_dis -= distance;
+									l_cy = l_ry;
+									f_ry = f_ry;
+							  }
+						  }
+							angle = heading;
+							l_rx = (double)l_cx * cos(angle) - (double)l_cy * sin(angle);  // rotating x
+							l_ry = (double)l_cx * sin(angle) + (double)l_cy * cos(angle);  // rotating y
+							map_projection_reproject(&hil_local_proj_ref, l_rx, l_ry, &next_point_lat, &next_point_lon);
+							PX4_INFO("first dis:%f,last dist:%f,next_point_lat:%f,next_point_lon:%f",(double)wp_div.param2,(double)last_point_dis,(double)next_point_lat,(double)next_point_lon);
+					 	}
+					}
+				  PX4_INFO("============================================");
+					lat = next_point_lat * 1e7;
+					lon = next_point_lon * 1e7;
+					memcpy(&wp_div.x,&lat,4);
+				  memcpy(&wp_div.y,&lon,4);
+					write_mission_item(i,wp_div);
+					first_point_dis = distance;
+				}
+			}
+		}
+}
+
+void
+MavlinkMissionManager::coordinate_transformation(const mavlink_message_t *msg)
+{
+	mavlink_mission_item_t wp;
+	mavlink_msg_mission_item_decode(msg, &wp);
+	
+	int x_x,y_y;
+	memcpy(&x_x,&wp.x,4);
+	memcpy(&y_y,&wp.y,4);
+	
+	if (wp.command == 500) {
+		flag__1E7=1;
+		mavlink_msg_mission_item_send_struct(_mavlink->get_channel(), &wp);
+		if(((int)wp.param1 == (int)100002) && ((int)wp.param2 == (int)3))	{
+			mavlink_mission_item_t  wp_div;
+			
+			for (int i=wp.param3;i<(int)wp.param3+(int)wp.param4;i++) {
+				wp_div = read_mission_item(i-1);	
+				if ( wp_div.command != MAV_CMD_DO_SET_CAM_TRIGG_DIST ) {
+			   	if (((int)(wp.param4)) == 1) {
+						memcpy(&wp_div.x,&wp.x,4);
+						memcpy(&wp_div.y,&wp.y,4);
+						wp_div.z = wp.z;
+			  	} else {
+						int x_b1,y_b1;
+						int x_b2,y_b2;
+
+						memcpy(&x_b1,&wp_div.x,4);
+						memcpy(&y_b1,&wp_div.y,4);
+						memcpy(&x_b2,&wp.x,4);
+						memcpy(&y_b2,&wp.y,4);
+
+						x_b1 += x_b2;
+						y_b1 += y_b2;
+
+						memcpy(&wp_div.x,&x_b1,4);
+						memcpy(&wp_div.y,&y_b1,4);
+
+						wp_div.z += wp.z;
+				  }
+
+					memcpy(&x_x,&wp.x,4);
+					memcpy(&y_y,&wp.y,4);
+				} else {
+					  int x_b1 = 0,y_b1 = 0,x_b2 = 0,y_b2 = 0;
+					  if (wp_div.param1 > 1.0f) {
+							memcpy(&x_b2,&wp.x,4);
+							memcpy(&y_b2,&wp.y,4);
+
+							wp_div.param3 += (float)(x_b2 / 1e7);
+							wp_div.param4 += (float)(y_b2 / 1e7);
+						}
+							memcpy(&x_b1,&wp_div.x,4);
+							memcpy(&y_b1,&wp_div.y,4);
+							PX4_INFO("befor -- lat:%f,lon:%f",x_b1 / 1e7,y_b1 / 1e7);
+							x_b1 += x_b2;
+							y_b1 += y_b2;
+						  PX4_INFO("after -- lat:%f,lon:%f",x_b1 / 1e7,y_b1 / 1e7);
+							memcpy(&wp_div.x,&x_b1,4);
+				    	memcpy(&wp_div.y,&y_b1,4);
+				}
+				write_mission_item(i-1,wp_div);
+			}
+			update_active_mission(_dataman_id, _count, _current_seq);
+
+			return;
+		}	else if (((int)wp.param1 == (int)100001))	{
+			mavlink_mission_item_t  wp_div;
+			for(int i=wp.param3;i<(int)wp.param3+(int)wp.param4;i++) {
+					int x_b1 = 0,x_b2 = 0,y_b1 = 0,y_b2 = 0;
+					wp_div = read_mission_item(i - 1);
+					if ( wp_div.command != MAV_CMD_DO_SET_CAM_TRIGG_DIST ) {
+						memcpy(&x_b1,&wp_div.x,4);
+						memcpy(&y_b1,&wp_div.y,4);
+						memcpy(&x_b2,&wp.x,4);
+						memcpy(&y_b2,&wp.y,4);
+
+						x_b1 = (x_b1-x_b2)*wp.param2 + x_b2;
+						y_b1 = (y_b1-y_b2)*wp.param2 + y_b2;
+
+						memcpy(&wp_div.x,&x_b1,4);
+						memcpy(&wp_div.y,&y_b1,4);
+					} else {
+						  if (wp_div.param1 > 1.0f) {
+						  	memcpy(&x_b2,&wp.x,4);
+								memcpy(&y_b2,&wp.y,4);
+								x_b1 = (int)((double)wp_div.param3 * 1e7);
+								y_b1 = (int)((double)wp_div.param4 * 1e7);
+							
+								x_b1 = (x_b1-x_b2)*wp.param2 + x_b2;
+								y_b1 = (y_b1-y_b2)*wp.param2 + y_b2;
+							
+								wp_div.param3 = (x_b1 / 1e7); 
+								wp_div.param4 = (y_b1 / 1e7);
+							}
+						  mavlink_mission_item_t wp_div2;
+						  wp_div2 = read_mission_item(i);
+						  	
+						  memcpy(&x_b1,&wp_div2.x,4);
+						  memcpy(&y_b1,&wp_div2.y,4);
+							if (x_b1 || y_b1) {
+						  	x_b1 = (x_b1-x_b2)*wp.param2 + x_b2;
+						 	 	y_b1 = (y_b1-y_b2)*wp.param2 + y_b2;
+								PX4_INFO("x_b1:%f,y_b1:%f",(double)(x_b1 / 1e7),(double)(y_b1 / 1e7));
+						  	memcpy(&wp_div.x,&x_b1,4);
+						 	 	memcpy(&wp_div.y,&y_b1,4); 
+						 	} 
+					}
+					write_mission_item(i-1,wp_div);
+			}
+			architecture_camera_trigger();
+			update_active_mission(_dataman_id, _count, _current_seq);
+			return;
+		}	else if(((int)wp.param1 == (int)100003)) {
+		//	flag__setting=1;
+			int x,y;
+			int r_x,r_y;
+			map_projection_reference_s hil_local_proj_ref;
+			double lat, lon;
+			//int angle_int;
+			double angle = (int)wp.param2;
+			angle = (double)(((angle)*((double)3.1415926))/1800000.0);
+			
+			double sin_angle = sin(angle),cos_angle = cos(angle);
+			mavlink_mission_item_t  wp_div;
+
+			memcpy(&r_x,&wp.x,4);
+			memcpy(&r_y,&wp.y,4);
+
+			lat = r_x/10000000.0;
+			lon = r_y/10000000.0;
+
+			map_projection_init(&hil_local_proj_ref, lat, lon);
+
+			float x_float;
+			float y_float;
+
+			float r_x_float;
+			float r_y_float;
+			map_projection_project(&hil_local_proj_ref, lat, lon, &r_x_float, &r_y_float);
+			for(int i=0;i<(int)wp.param4;i++) {
+				wp_div = read_mission_item(i-1);
+				if ( wp_div.command != MAV_CMD_DO_SET_CAM_TRIGG_DIST ) { 
+						memcpy(&x,&wp_div.x,4);
+						memcpy(&y,&wp_div.y,4);
+
+		        lat = x/10000000.0;
+				    lon = y/10000000.0;
+				
+				    map_projection_project(&hil_local_proj_ref, lat, lon, &x_float, &y_float);
+
+				    float x_b,y_b;
+				    x_b = ((double)x_float - (double)r_x_float)*(double)cos_angle - ((double)y_float 
+				    											 - (double)r_y_float)*(double)sin_angle + (double)r_x_float;
+				    y_b = ((double)y_float - (double)r_y_float)*(double)cos_angle + ((double)x_float
+				                           - (double)r_x_float)*(double)sin_angle +  (double)r_y_float;
+						
+						map_projection_reproject(&hil_local_proj_ref, x_b, y_b, &lat, &lon);
+
+						x = ((double)lat)*10000000.0;
+				    y = ((double)lon)*10000000.0;
+
+				    memcpy(&wp_div.x,&x,4);
+				    memcpy(&wp_div.y,&y,4);
+				} else {
+					  float x_b,y_b;
+					  if (wp_div.param1 > 1.0f) {
+					  	lat = wp_div.param3;
+					  	lon = wp_div.param4;
+					  	
+					  	map_projection_project(&hil_local_proj_ref, lat, lon, &x_float, &y_float);
+				      x_b = ((double)x_float - (double)r_x_float)*(double)cos_angle - ((double)y_float 
+				    											 - (double)r_y_float)*(double)sin_angle + (double)r_x_float;
+				   		y_b = ((double)y_float - (double)r_y_float)*(double)cos_angle + ((double)x_float
+				                           - (double)r_x_float)*(double)sin_angle +  (double)r_y_float;
+							map_projection_reproject(&hil_local_proj_ref, x_b, y_b , &lat, &lon);
+
+							wp_div.param3 = lat;
+					  	wp_div.param4 = lon;
+						}
+            	memcpy(&x,&wp_div.x,4);
+							memcpy(&y,&wp_div.y,4);
+					  	lat = x / 1e7;
+					    lon = y / 1e7;
+					  
+					 		//PX4_INFO("lat:%f,lon:%f",(double)lat,(double)lon);
+							map_projection_project(&hil_local_proj_ref, lat, lon, &x_float, &y_float);
+				   		x_b = ((double)x_float - (double)r_x_float)*(double)cos_angle - ((double)y_float 
+				    											 - (double)r_y_float)*(double)sin_angle + (double)r_x_float;
+				     	y_b = ((double)y_float - (double)r_y_float)*(double)cos_angle + ((double)x_float
+				                           - (double)r_x_float)*(double)sin_angle +  (double)r_y_float;
+
+						 	map_projection_reproject(&hil_local_proj_ref, x_b, y_b , &lat, &lon);
+						  PX4_INFO("--lat:%f,lon:%f-- --lat:%f,lon:%f",x / 1e7,y / 1e7,(double)lat,(double)lon);
+						  x = lat * 1e7;
+				      y = lon * 1e7;
+				    
+				      memcpy(&wp_div.x,&x,4);
+				      memcpy(&wp_div.y,&y,4);	 	
+				 	
+				}
+				
+				write_mission_item(i-1,wp_div);
+			}
+
+			update_active_mission(_dataman_id, _count, _current_seq);
+			return;
+		}
+	}
+}
 
 void
 MavlinkMissionManager::handle_mission_item(const mavlink_message_t *msg)
@@ -800,194 +1206,9 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 
 	mavlink_mission_item_t wp;
 	mavlink_msg_mission_item_decode(msg, &wp);
-	int x_x,y_y;
-  
-	memcpy(&x_x,&wp.x,4);
-	memcpy(&y_y,&wp.y,4);
 	
 	if (wp.command == 500) {
-		flag__1E7=1;
-		mavlink_msg_mission_item_send_struct(_mavlink->get_channel(), &wp);
-		if(((int)wp.param1 == (int)100002) && ((int)wp.param2 == (int)3))	{
-			mavlink_mission_item_t wp_div;
-		
-			for (uint16_t i=wp.param3;i<(int)wp.param3+(int)wp.param4;i++) {
-				wp_div = read_mission_item(i-1);	
-				if ( wp_div.command != MAV_CMD_DO_SET_CAM_TRIGG_DIST ) {
-			   	if(((int)(wp.param4)) == 1) {
-						memcpy(&wp_div.x,&wp.x,4);
-						memcpy(&wp_div.y,&wp.y,4);
-						wp_div.z = wp.z;
-			  	} else {
-						int x_b1,y_b1;
-						int x_b2,y_b2;
-
-						memcpy(&x_b1,&wp_div.x,4);
-						memcpy(&y_b1,&wp_div.y,4);
-						memcpy(&x_b2,&wp.x,4);
-						memcpy(&y_b2,&wp.y,4);
-
-						x_b1 += x_b2;
-						y_b1 += y_b2;
-
-						memcpy(&wp_div.x,&x_b1,4);
-						memcpy(&wp_div.y,&y_b1,4);
-
-						wp_div.z += wp.z;
-				  }
-					memcpy(&x_x,&wp.x,4);
-					memcpy(&y_y,&wp.y,4);
-				} else {
-					int x_b2,y_b2;
-
-					memcpy(&x_b2,&wp.x,4);
-					memcpy(&y_b2,&wp.y,4);
-
-					wp_div.param3 += (float)(x_b2/1e7);
-					wp_div.param4 += (float)(y_b2/1e7);
-					wp_div.x += (float)(x_b2/1e7);
-					wp_div.y += (float)(y_b2/1e7);
-				
-					int x,y;
-					x = int((double)wp_div.x*1e7);
-					y = int((double)wp_div.y*1e7);
-					memcpy(&wp_div.x,&x,4);
-				  memcpy(&wp_div.y,&y,4);
-				}
-				write_mission_item(i-1,wp_div);
-			} 
-			update_active_mission(_dataman_id, _count, _current_seq);
-			return;
-		}	else if (((int)wp.param1 == (int)100001))	{
-		//	flag__setting=1;
-			mavlink_mission_item_t  wp_div;
-			for(int i=wp.param3;i<(int)wp.param3+(int)wp.param4;i++) {
-				int x_b1,x_b2,y_b1,y_b2;
-				wp_div = read_mission_item(i-1);
-				if ( wp_div.command != MAV_CMD_DO_SET_CAM_TRIGG_DIST ) {
-					memcpy(&x_b1,&wp_div.x,4);
-					memcpy(&y_b1,&wp_div.y,4);
-					memcpy(&x_b2,&wp.x,4);
-					memcpy(&y_b2,&wp.y,4);
-
-					x_b1 = (x_b1-x_b2)*wp.param2 + x_b2;
-					y_b1 = (y_b1-y_b2)*wp.param2 + y_b2;
-
-					memcpy(&wp_div.x,&x_b1,4);
-					memcpy(&wp_div.y,&y_b1,4);
-				} else {
-					memcpy(&x_b2,&wp.x,4);
-					memcpy(&y_b2,&wp.y,4);
-					x_b1 = (int)((double)wp_div.param3*1e7);
-					y_b1 = (int)((double)wp_div.param4*1e7);
-							
-					x_b1 = (x_b1-x_b2)*wp.param2 + x_b2;
-					y_b1 = (y_b1-y_b2)*wp.param2 + y_b2;
-						
-					wp_div.param3 = (x_b1 / 1e7);
-					wp_div.param4 = (y_b1 / 1e7);
-							
-					x_b1 = (int)((double)wp_div.x*1e7);
-					y_b1 = (int)((double)wp_div.y*1e7);
-							
-					x_b1 = (x_b1-x_b2)*wp.param2 + x_b2;
-					y_b1 = (y_b1-y_b2)*wp.param2 + y_b2;
-							
-					memcpy(&wp_div.x,&x_b1,4);
-					memcpy(&wp_div.y,&y_b1,4);
-						  
-				}
-				write_mission_item(i-1,wp_div);
-			}
-			update_active_mission(_dataman_id, _count, _current_seq);
-			return;
-		}	else if(((int)wp.param1 == (int)100003)) {
-		//	flag__setting=1;
-			int x,y;
-			int r_x,r_y;
-			map_projection_reference_s hil_local_proj_ref;
-			double lat, lon;
-			//int angle_int;
-			double angle = (int)wp.param2;
-			angle = (double)(((angle)*((double)3.1415926))/1800000.0);
-			double sin_angle = sin(angle),cos_angle = cos(angle);
-			mavlink_mission_item_t  wp_div;
-
-			memcpy(&r_x,&wp.x,4);
-			memcpy(&r_y,&wp.y,4);
-
-			lat = r_x/10000000.0;
-			lon = r_y/10000000.0;
-
-			map_projection_init(&hil_local_proj_ref, lat, lon);
-
-			float x_float;
-			float y_float;
-
-			float r_x_float;
-			float r_y_float;
-			map_projection_project(&hil_local_proj_ref, lat, lon, &r_x_float, &r_y_float);
-
-			for(int i=0;i<(int)wp.param4;i++) {
-				wp_div = read_mission_item(i-1);
-				if ( wp_div.command != MAV_CMD_DO_SET_CAM_TRIGG_DIST ) { 
-					memcpy(&x,&wp_div.x,4);
-					memcpy(&y,&wp_div.y,4);
-
-		      lat = x/10000000.0;
-				  lon = y/10000000.0;
-				
-				  map_projection_project(&hil_local_proj_ref, lat, lon, &x_float, &y_float);
-
-				  float x_b,y_b;
-				  x_b = ((double)x_float - (double)r_x_float)*(double)cos_angle - ((double)y_float 
-				    											 - (double)r_y_float)*(double)sin_angle + (double)r_x_float;
-				  y_b = ((double)y_float - (double)r_y_float)*(double)cos_angle + ((double)x_float
-				                           - (double)r_x_float)*(double)sin_angle +  (double)r_y_float;
-
-				  map_projection_reproject(&hil_local_proj_ref, x_b, y_b , &lat, &lon);
-
-					x = ((double)lat)*10000000.0;
-				  y = ((double)lon)*10000000.0;
-
-				  memcpy(&wp_div.x,&x,4);
-				  memcpy(&wp_div.y,&y,4);
-				} else {
-					lat = wp_div.param3;
-					lon = wp_div.param4;
-					map_projection_project(&hil_local_proj_ref, lat, lon, &x_float, &y_float);
-
-				  float x_b,y_b;
-				  x_b = ((double)x_float - (double)r_x_float)*(double)cos_angle - ((double)y_float 
-				    											 - (double)r_y_float)*(double)sin_angle + (double)r_x_float;
-				  y_b = ((double)y_float - (double)r_y_float)*(double)cos_angle + ((double)x_float
-				                           - (double)r_x_float)*(double)sin_angle +  (double)r_y_float;
-					map_projection_reproject(&hil_local_proj_ref, x_b, y_b , &lat, &lon);
-
-					wp_div.param3 = lat;
-					wp_div.param4 = lon;
-
-				  lat = wp_div.x;
-					lon = wp_div.y;
-				  map_projection_project(&hil_local_proj_ref, lat, lon, &x_float, &y_float);
-				  x_b = ((double)x_float - (double)r_x_float)*(double)cos_angle - ((double)y_float 
-				    											 - (double)r_y_float)*(double)sin_angle + (double)r_x_float;
-				  y_b = ((double)y_float - (double)r_y_float)*(double)cos_angle + ((double)x_float
-				                           - (double)r_x_float)*(double)sin_angle +  (double)r_y_float;
-
-				  map_projection_reproject(&hil_local_proj_ref, x_b, y_b , &lat, &lon);
-		
-					x = ((double)lat)*10000000.0;
-				  y = ((double)lon)*10000000.0;
-				    
-				  memcpy(&wp_div.x,&x,4);
-				  memcpy(&wp_div.y,&y,4);
-				}
-				write_mission_item(i-1,wp_div);
-			}
-			update_active_mission(_dataman_id, _count, _current_seq);
-			return;
-		}
+		coordinate_transformation(msg);
 	}
 
 	if (CHECK_SYSID_COMPID_MISSION(wp)) {
