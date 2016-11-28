@@ -2073,7 +2073,7 @@ Mavlink::task_main(int argc, char *argv[])
 		configure_stream("VFR_HUD", 20.0f);
 		configure_stream("WIND_COV", 10.0f);
 		configure_stream("CAMERA_TRIGGER", 500.0f);
-		configure_stream("CAMERA_FEEDBACK", 500.0f);         //added 2016/8/24
+		//configure_stream("CAMERA_FEEDBACK", 500.0f);         //added 2016/8/24
 		configure_stream("MISSION_ITEM", 50.0f);
 		configure_stream("ACTUATOR_CONTROL_TARGET0", 30.0f);
 		configure_stream("ACTUATOR_CONTROL_TARGET2", 30.0f); //added 2016/8/15
