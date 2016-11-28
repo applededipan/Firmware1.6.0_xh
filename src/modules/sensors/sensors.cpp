@@ -2484,9 +2484,9 @@ Sensors::task_main()
 
 #if !defined(__PX4_QURT) && !defined(__PX4_POSIX_RPI) && !defined(__PX4_POSIX_BEBOP)
 	// TODO: move adc_init into the sensors_init call.
-	ret = ret && adc_init();
+	ret = ret || adc_init();
 #endif
-
+	adc_init();
 	if (ret) {
 		PX4_ERR("sensor initialization failed");
 	}
