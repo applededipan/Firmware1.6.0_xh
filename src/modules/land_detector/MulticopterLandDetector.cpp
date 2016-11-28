@@ -141,7 +141,7 @@ bool MulticopterLandDetector::_get_landed_state()
 	// Time base for this function
 	const uint64_t now = hrt_absolute_time();
 
-	float sys_min_throttle = (_params.maxThrottle + 0.01f);
+	float sys_min_throttle = (_params.maxThrottle + 0.05f);
 
 	// Determine the system min throttle based on flight mode
 	if (!_ctrl_mode.flag_control_altitude_enabled) {
@@ -149,7 +149,14 @@ bool MulticopterLandDetector::_get_landed_state()
 	}
 
 	// Check if thrust output is less than the minimum auto throttle param.
-	bool minimalThrust = (_actuators.control[3] <= sys_min_throttle);
+	bool minimalThrust ;
+	{
+//		minimalThrust = (_actuators.control[3] <= sys_min_throttle);
+
+		static float sys_min_throttle_velue = 0.0f;
+		sys_min_throttle_velue = sys_min_throttle_velue*0.9f + _actuators.control[3]*0.1f;
+		minimalThrust = (sys_min_throttle_velue <= sys_min_throttle);
+	}
 
 	if (minimalThrust && _min_trust_start == 0) {
 		_min_trust_start = now;
@@ -187,7 +194,7 @@ bool MulticopterLandDetector::_get_landed_state()
 		// falling consider it to be landed. This should even sustain
 		// quite acrobatic flight.
 		if ((_min_trust_start > 0) &&
-		    (hrt_elapsed_time(&_min_trust_start) > 8 * 1000 * 1000)) {
+		    (hrt_elapsed_time(&_min_trust_start) > 2 * 1000 * 1000)) {
 
 			return true;
 
@@ -216,9 +223,22 @@ bool MulticopterLandDetector::_get_landed_state()
 	// Next look if all rotation angles are not moving.
 	float maxRotationScaled = _params.maxRotation_rad_s * armThresholdFactor;
 
-	bool rotating = (fabsf(_vehicleAttitude.rollspeed)  > maxRotationScaled) ||
-			(fabsf(_vehicleAttitude.pitchspeed) > maxRotationScaled) ||
-			(fabsf(_vehicleAttitude.yawspeed) > maxRotationScaled);
+
+
+//	bool rotating = (fabsf(_vehicleAttitude.rollspeed)  > maxRotationScaled) ||
+//			(fabsf(_vehicleAttitude.pitchspeed) > maxRotationScaled) ||
+//			(fabsf(_vehicleAttitude.yawspeed) > maxRotationScaled);
+	static float _vehicleAttitude_rollspeed_filter	=0;
+	static float _vehicleAttitude_pitchspeed_filter	=0;
+	static float _vehicleAttitude_yawspeed_filter	=0;
+	_vehicleAttitude_rollspeed_filter	= _vehicleAttitude_rollspeed_filter* 0.5f  + 0.5f*_vehicleAttitude.rollspeed;
+	_vehicleAttitude_pitchspeed_filter	= _vehicleAttitude_pitchspeed_filter*0.5f  + 0.5f*_vehicleAttitude.pitchspeed;
+	_vehicleAttitude_yawspeed_filter	= _vehicleAttitude_yawspeed_filter*  0.5f  + 0.5f*_vehicleAttitude.yawspeed;
+	bool rotating =
+			(fabsf(_vehicleAttitude_rollspeed_filter)>maxRotationScaled) ||
+			(fabsf(_vehicleAttitude_pitchspeed_filter)>maxRotationScaled)||
+			(fabsf(_vehicleAttitude_yawspeed_filter)>maxRotationScaled)  ;
+
 
 
 	if (verticalMovement || rotating || !minimalThrust || horizontalMovement) {
