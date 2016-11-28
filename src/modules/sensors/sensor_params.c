@@ -3135,6 +3135,16 @@ PARAM_DEFINE_INT32(SENS_EN_SF0X, 0);
 PARAM_DEFINE_INT32(SENS_EN_MB12XX, 0);
 
 /**
+ * ADR and MPU test 0-mpu6000 1-mpu+adi
+ *
+ * @reboot_required true
+ *
+ * @boolean
+ * @group Sensor Enable
+ */
+PARAM_DEFINE_INT32(SENS_EN_ADI_MPU, 0);
+
+/**
  * TeraRanger One (trone)
  *
  * @reboot_required true
