@@ -334,8 +334,17 @@ void Tailsitter::update_transition_state()
 			_v_att_sp->thrust = _thrust_transition_start * 0.9f;
 			
 		} else {			
-			_v_att_sp->thrust = _thrust_transition_start * _params_tailsitter.vtol_btrans_thr;
-			
+	        matrix::Eulerf eulertemp = matrix::Quatf(_v_att->q);
+	        float pitchtemp = eulertemp.theta();
+            
+            if (pitchtemp >= (PITCH_TRANSITION_BACK-0.1f)) {				
+				_v_att_sp->thrust = _v_att_sp->thrust * _params_tailsitter.vtol_btrans_thr;
+				
+			} else {				
+				_v_att_sp->thrust = _thrust_transition_start * _params_tailsitter.vtol_btrans_thr;
+				
+			}				
+			// _v_att_sp->thrust = _thrust_transition_start * _params_tailsitter.vtol_btrans_thr;			
 		}
 
 		/** keep yaw disabled */
