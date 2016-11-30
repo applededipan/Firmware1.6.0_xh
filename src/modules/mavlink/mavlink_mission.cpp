@@ -855,14 +855,14 @@ MavlinkMissionManager::architecture_camera_trigger(void)
 							//PX4_INFO("heading:%f,f_rx:%f,f_ry:%f,l_rx:%f,l_ry:%f,total_dis:%f, -- %f",(double)heading,(double)f_rx,(double)f_ry,(double)l_rx,(double)l_ry,(double)total_dis,(double)(first_position - last_position).length());
 							first_point_dis = fabs(f_rx);
 							last_point_dis = fabs(l_rx);
-							PX4_INFO("i=%d,f_rx:%f,l_rx:%f,first_point_dis:%f,last_point_dis:%f,total_dis:%f",i,(double)f_rx,(double)l_rx,(double)first_point_dis,(double)last_point_dis,(double)total_dis);
+							//PX4_INFO("i=%d,f_rx:%f,l_rx:%f,first_point_dis:%f,last_point_dis:%f,total_dis:%f",i,(double)f_rx,(double)l_rx,(double)first_point_dis,(double)last_point_dis,(double)total_dis);
 							float symbol = f_rx * l_rx;
 							if (symbol < 0.0001f) {
 								//first point
 								if (first_point_dis >= distance) {
 									count = (first_point_dis - distance) / div_dis;
 									rem = fmod((first_point_dis - distance),div_dis);
-									PX4_INFO("first rem:%f",(double)rem);
+									//PX4_INFO("first rem:%f",(double)rem);
 									if(div_dis - rem <= 5.0f) { //if remaining 5 meters
 										count++;
 										wp_div.param2 = distance - (div_dis - rem);
@@ -880,7 +880,7 @@ MavlinkMissionManager::architecture_camera_trigger(void)
 								if (last_point_dis >= distance) {
 									count = (last_point_dis - distance) / div_dis;
 									rem = fmod((last_point_dis - distance),div_dis);
-								  PX4_INFO("last rem:%f",(double)rem);
+								  //PX4_INFO("last rem:%f",(double)rem);
 									if (div_dis - rem <= 5.0f) { //if remaining 5 meters
 											count++;
 											last_point_dis = distance - (div_dis - rem);
@@ -900,7 +900,7 @@ MavlinkMissionManager::architecture_camera_trigger(void)
 									if (first_point_dis >= distance) {
 										count = (first_point_dis - distance) / div_dis;
 										rem = fmod((first_point_dis - distance),div_dis);
-										PX4_INFO("first rem:%f",(double)rem);
+										//PX4_INFO("first rem:%f",(double)rem);
 										if (div_dis - rem <= 5.0f) { //if remaining 5 meters
 											count++;
 											wp_div.param2 = distance - (div_dis - rem);
@@ -909,7 +909,7 @@ MavlinkMissionManager::architecture_camera_trigger(void)
 								  //last point
 									count = (last_point_dis + distance) / div_dis;
 									rem = fmod((last_point_dis + distance),div_dis);
-									PX4_INFO("last rem:%f",(double)rem);
+									//PX4_INFO("last rem:%f",(double)rem);
 							 		if (div_dis - rem > 5.0f) { 
 							  		count++;
 							  		last_point_dis = count * div_dis ;
@@ -933,7 +933,7 @@ MavlinkMissionManager::architecture_camera_trigger(void)
 							  	if (last_point_dis >= distance) {
 										count = (last_point_dis - distance) / div_dis;
 										rem = fmod((last_point_dis - distance),div_dis);
-										PX4_INFO("last rem:%f",(double)rem);
+										//PX4_INFO("last rem:%f",(double)rem);
 										if (div_dis - rem <= 5.0f) { //if remaining 5 meters
 											count++;
 											last_point_dis = distance - (div_dis - rem);
@@ -949,10 +949,10 @@ MavlinkMissionManager::architecture_camera_trigger(void)
 							l_rx = (double)l_cx * cos(angle) - (double)l_cy * sin(angle);  // rotating x
 							l_ry = (double)l_cx * sin(angle) + (double)l_cy * cos(angle);  // rotating y
 							map_projection_reproject(&hil_local_proj_ref, l_rx, l_ry, &next_point_lat, &next_point_lon);
-							PX4_INFO("first dis:%f,last dist:%f,next_point_lat:%f,next_point_lon:%f",(double)wp_div.param2,(double)last_point_dis,(double)next_point_lat,(double)next_point_lon);
+							//PX4_INFO("first dis:%f,last dist:%f,next_point_lat:%f,next_point_lon:%f",(double)wp_div.param2,(double)last_point_dis,(double)next_point_lat,(double)next_point_lon);
 					 	}
 					}
-				  PX4_INFO("============================================");
+				  //PX4_INFO("============================================");
 					lat = next_point_lat * 1e7;
 					lon = next_point_lon * 1e7;
 					memcpy(&wp_div.x,&lat,4);
@@ -1018,10 +1018,10 @@ MavlinkMissionManager::coordinate_transformation(const mavlink_message_t *msg)
 						}
 							memcpy(&x_b1,&wp_div.x,4);
 							memcpy(&y_b1,&wp_div.y,4);
-							PX4_INFO("befor -- lat:%f,lon:%f",x_b1 / 1e7,y_b1 / 1e7);
+							//PX4_INFO("befor -- lat:%f,lon:%f",x_b1 / 1e7,y_b1 / 1e7);
 							x_b1 += x_b2;
 							y_b1 += y_b2;
-						  PX4_INFO("after -- lat:%f,lon:%f",x_b1 / 1e7,y_b1 / 1e7);
+						  //PX4_INFO("after -- lat:%f,lon:%f",x_b1 / 1e7,y_b1 / 1e7);
 							memcpy(&wp_div.x,&x_b1,4);
 				    	memcpy(&wp_div.y,&y_b1,4);
 				}
@@ -1067,7 +1067,7 @@ MavlinkMissionManager::coordinate_transformation(const mavlink_message_t *msg)
 							if (x_b1 || y_b1) {
 						  	x_b1 = (x_b1-x_b2)*wp.param2 + x_b2;
 						 	 	y_b1 = (y_b1-y_b2)*wp.param2 + y_b2;
-								PX4_INFO("x_b1:%f,y_b1:%f",(double)(x_b1 / 1e7),(double)(y_b1 / 1e7));
+								//PX4_INFO("x_b1:%f,y_b1:%f",(double)(x_b1 / 1e7),(double)(y_b1 / 1e7));
 						  	memcpy(&wp_div.x,&x_b1,4);
 						 	 	memcpy(&wp_div.y,&y_b1,4); 
 						 	} 
@@ -1157,7 +1157,7 @@ MavlinkMissionManager::coordinate_transformation(const mavlink_message_t *msg)
 				                           - (double)r_x_float)*(double)sin_angle +  (double)r_y_float;
 
 						 	map_projection_reproject(&hil_local_proj_ref, x_b, y_b , &lat, &lon);
-						  PX4_INFO("--lat:%f,lon:%f-- --lat:%f,lon:%f",x / 1e7,y / 1e7,(double)lat,(double)lon);
+						  //PX4_INFO("--lat:%f,lon:%f-- --lat:%f,lon:%f",x / 1e7,y / 1e7,(double)lat,(double)lon);
 						  x = lat * 1e7;
 				      y = lon * 1e7;
 				    
@@ -1228,6 +1228,7 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 			wp.frame = wp.frame - 10 ;
 #endif
 			wp.command = wp.command - 200;
+			_state = MAVLINK_WPM_STATE_GETLIST;
 		}	else flag__1E7 = 0;
 			
 		if (_state == MAVLINK_WPM_STATE_GETLIST) {
@@ -1235,7 +1236,8 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 
 			if (wp.seq != _transfer_seq) {
 				if (_verbose) { warnx("WPM: MISSION_ITEM ERROR: seq %u was not the expected %u", wp.seq, _transfer_seq); }
-
+				if (flag__1E7)
+					_state = MAVLINK_WPM_STATE_IDLE;
 				/* don't send request here, it will be performed in eventloop after timeout */
 				return;
 			}
