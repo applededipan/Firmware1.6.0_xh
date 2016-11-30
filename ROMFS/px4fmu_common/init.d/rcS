@@ -359,17 +359,17 @@ then
 
 	# Sensors on the PWM interface bank
 	# clear pins 5 and 6
-	if param compare SENS_EN_LL40LS 1
-	then
-		set FMU_MODE pwm4
-		set AUX_MODE pwm4
-	fi
-	if param greater TRIG_MODE 0
-	then
-		set FMU_MODE pwm4
-		set AUX_MODE pwm4
-		camera_trigger start
-	fi
+	#if param compare SENS_EN_LL40LS 1
+	#then
+	#	set FMU_MODE pwm4
+	#	set AUX_MODE pwm4
+	#fi
+	#if param greater TRIG_MODE 0
+	#then
+	#	set FMU_MODE pwm4
+	#	set AUX_MODE pwm4
+	#	camera_trigger start
+	#fi
 
 	# If OUTPUT_MODE == none then something is wrong with setup and we shouldn't try to enable output
 	if [ $OUTPUT_MODE != none ]
@@ -883,7 +883,7 @@ then
 		then
 			# On Pixracer use Telem 2 port (TL2).
 			#snapdragon_rc_pwm start -d /dev/ttyS2
-			fmu mode_pwm4
+			fmu mode_pwm
 		fi
 
 		pwm failsafe -c 1234 -p 900
