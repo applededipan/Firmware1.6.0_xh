@@ -1220,9 +1220,11 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 
 	mavlink_mission_item_t wp;
 	mavlink_msg_mission_item_decode(msg, &wp);
-	
+	bool cmdflag = false;
 	if (wp.command == 500) {
 		coordinate_transformation(msg);
+		cmdflag = true;
+		_state = MAVLINK_WPM_STATE_GETLIST;
 	}
 
 	if (CHECK_SYSID_COMPID_MISSION(wp)) {
@@ -1242,7 +1244,7 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 			wp.frame = wp.frame - 10 ;
 #endif
 			wp.command = wp.command - 200;
-			_state = MAVLINK_WPM_STATE_GETLIST;
+			
 		}	else flag__1E7 = 0;
 			
 		if (_state == MAVLINK_WPM_STATE_GETLIST) {
@@ -1250,7 +1252,7 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 
 			if (wp.seq != _transfer_seq) {
 				if (_verbose) { warnx("WPM: MISSION_ITEM ERROR: seq %u was not the expected %u", wp.seq, _transfer_seq); }
-				if (flag__1E7)
+				if (cmdflag)
 					_state = MAVLINK_WPM_STATE_IDLE;
 				/* don't send request here, it will be performed in eventloop after timeout */
 				return;
