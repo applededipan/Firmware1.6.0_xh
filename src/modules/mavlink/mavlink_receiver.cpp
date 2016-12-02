@@ -403,6 +403,8 @@ MavlinkReceiver::handle_message_command_long(mavlink_message_t *msg)
 			_pos_sp_current_airspeed.airspeed = cmd_mavlink.param2;
 			orb_publish(ORB_ID(position_setpoint_current_airspeed), _pos_sp_current_airspeed_pub,
 					&_pos_sp_current_airspeed);
+			if (fabs(_pos_sp_current_airspeed.airspeed) > 1e-7) 
+				_mavlink->set_airspeed(_pos_sp_current_airspeed.airspeed);
 
 		} else {
 

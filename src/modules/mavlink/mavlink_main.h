@@ -451,7 +451,11 @@ public:
 	void			request_stop_ulog_streaming() {
 		if (_mavlink_ulog) { _mavlink_ulog_stop_requested = true; }
 	}
-
+	
+  void set_airspeed(float speed) {
+  	_mission_manager->change_airspeed(speed);
+  }
+  
 protected:
 	Mavlink			*next;
 
