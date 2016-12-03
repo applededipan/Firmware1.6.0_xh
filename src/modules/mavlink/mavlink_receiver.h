@@ -79,7 +79,7 @@
 #include <uORB/topics/gps_inject_data.h>
 #include <uORB/topics/control_state.h>
 #include <uORB/topics/position_setpoint_current_airspeed.h>
-
+#include <uORB/topics/camera_trigger.h> //! added 
 #include "mavlink_ftp.h"
 
 #define PX4_EPOCH_SECS 1234567890ULL
@@ -147,7 +147,7 @@ private:
 	void handle_message_battery_status(mavlink_message_t *msg);
 	void handle_message_serial_control(mavlink_message_t *msg);
 	void handle_message_logging_ack(mavlink_message_t *msg);
-
+    void handle_message_camera_trigger(mavlink_message_t *msg); //! apple
 	void *receive_thread(void *arg);
 
 	/**
@@ -224,6 +224,7 @@ private:
 	orb_advert_t _follow_target_pub;
 	orb_advert_t _transponder_report_pub;
 	orb_advert_t _control_state_pub;
+	orb_advert_t _camera_trigger_pub; // apple
 	static const int _gps_inject_data_queue_size = 6;
 	orb_advert_t _gps_inject_data_pub;
 	orb_advert_t _command_ack_pub;
