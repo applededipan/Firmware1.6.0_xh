@@ -2291,7 +2291,8 @@ protected:
 				ck[1] = (uint8_t)(checksum >> 8);
 				buf[len+6] = ck[0];                 //CKA
 				buf[len+7] = ck[1];                 //CKB
-
+#define CAMERA_ZOOM_EN /* apple: enable camera zoom_in_out via /dev/ttyS6  USART8 */
+#ifndef CAMERA_ZOOM_EN
 				const char *device_name = "/dev/ttyS6";
 				static int uart_fd = -1;
 
@@ -2299,6 +2300,7 @@ protected:
 						uart_fd = open(device_name, O_RDWR| O_NOCTTY | O_NONBLOCK);
 				if(uart_fd > 0)
 					  write(uart_fd, &buf,sizeof(buf));
+#endif
 #endif
 //				if(uart_fd > 0)
 //           write(uart_fd, &msg.time_usec,sizeof(msg.time_usec));
