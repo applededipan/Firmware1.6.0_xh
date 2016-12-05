@@ -74,6 +74,10 @@ Tailsitter::Tailsitter(VtolAttitudeControl *attc) :
 	_params_handles_tailsitter.airspeed_blend_start = param_find("VT_ARSP_BLEND");
 	_params_handles_tailsitter.elevons_mc_lock = param_find("VT_ELEV_MC_LOCK");
     _params_handles_tailsitter.vtol_btrans_thr = param_find("VT_B_TRANS_THR"); // apple
+	_params_handles_tailsitter.front_trans_pitch = param_find("VT_PITCH_F_TRANS"); // apple
+    _params_handles_tailsitter.back_trans_pitch = param_find("VT_PITCH_B_TRANS");  // apple
+	_params_handles_tailsitter.vtol_ftrans_force_en = param_find("VT_F_TRANS_EN");
+	_params_handles_tailsitter.vtol_btrans_force_en = param_find("VT_B_TRANS_EN");
 }
 
 Tailsitter::~Tailsitter()
@@ -110,6 +114,24 @@ Tailsitter::parameters_update()
 	/* vtol back transition thr */
 	param_get(_params_handles_tailsitter.vtol_btrans_thr, &v); // apple 2016/11/26
 	_params_tailsitter.vtol_btrans_thr = math::constrain(v, 0.0f, 1.0f);
+
+	/* vtol front transition p1 pitch */
+	param_get(_params_handles_tailsitter.front_trans_pitch, &v); // apple 
+	v = math::constrain(v, 0.0f, 90.0f);
+	_params_tailsitter.front_trans_pitch = v * 0.01745f;
+	
+	/* vtol back transition pitch*/
+	param_get(_params_handles_tailsitter.back_trans_pitch, &v); // apple
+	v = math::constrain(v, 0.0f, 60.0f);
+	_params_tailsitter.back_trans_pitch = v * 0.01745f;
+
+    /* vtol force front transition */
+	param_get(_params_handles_tailsitter.vtol_ftrans_force_en, &l);
+	_params_tailsitter.vtol_ftrans_force_en = l;
+
+    /* vtol force back transition */	
+	param_get(_params_handles_tailsitter.vtol_btrans_force_en, &l);
+	_params_tailsitter.vtol_btrans_force_en = l;
 	
 	/* vtol lock elevons in multicopter */
 	param_get(_params_handles_tailsitter.elevons_mc_lock, &l);
@@ -135,80 +157,102 @@ void Tailsitter::update_vtol_state()
 	matrix::Eulerf euler = matrix::Quatf(_v_att->q);
 	float pitch = euler.theta();
 
-	if (_attc->is_fixed_wing_requested() == 0) {
-
-
-		switch (_vtol_schedule.flight_mode) { // user switchig to MC mode
-		case MC_MODE:
-			break;
-
-		case FW_MODE:
-			_vtol_schedule.flight_mode 	= TRANSITION_BACK;
-			_vtol_schedule.transition_start = hrt_absolute_time();
-			break;
-
-		case TRANSITION_FRONT_P1:
-			// failsafe into multicopter mode
+	if (_attc->is_fixed_wing_requested() == 0) {  // user switchig to MC mode
+        
+		if (_params_tailsitter.vtol_btrans_force_en) {  // skip judgement
 			_vtol_schedule.flight_mode = MC_MODE;
-			break;
+			
+		} else {
+			switch (_vtol_schedule.flight_mode) { 
+			case MC_MODE:
+				break;
 
-		case TRANSITION_FRONT_P2:
-			// NOT USED
-			// failsafe into multicopter mode
-			//_vtol_schedule.flight_mode = MC_MODE;
-			break;
+			case FW_MODE:
+				_vtol_schedule.flight_mode 	= TRANSITION_BACK;
+				_vtol_schedule.transition_start = hrt_absolute_time();
+				break;
 
-		case TRANSITION_BACK:
-
-			// check if we have reached pitch angle to switch to MC mode
-			if (pitch >= PITCH_TRANSITION_BACK) {
+			case TRANSITION_FRONT_P1:
+				// failsafe into multicopter mode
 				_vtol_schedule.flight_mode = MC_MODE;
+				break;
+
+			case TRANSITION_FRONT_P2:
+				// NOT USED
+				// failsafe into multicopter mode
+				//_vtol_schedule.flight_mode = MC_MODE;
+				break;
+
+			case TRANSITION_BACK:
+
+				// check if we have reached pitch angle to switch to MC mode
+				if (_params_tailsitter.back_trans_pitch <= 0.0f) {
+					if (pitch >= PITCH_TRANSITION_BACK) {
+						_vtol_schedule.flight_mode = MC_MODE;					
+					}
+					
+				} else {
+					if (pitch >= (-_params_tailsitter.back_trans_pitch)) {
+						_vtol_schedule.flight_mode = MC_MODE;					
+					}
+					
+				}
+
+				break;
 			}
-
-			break;
-		}
-
+        }
 	} else if (_attc->is_fixed_wing_requested() == 1) {  // user switchig to FW mode
 
-		switch (_vtol_schedule.flight_mode) {
-		case MC_MODE:
-			// initialise a front transition
-			_vtol_schedule.flight_mode 	= TRANSITION_FRONT_P1;
-			_vtol_schedule.transition_start = hrt_absolute_time();
-			break;
-
-		case FW_MODE:
-			break;
-
-		case TRANSITION_FRONT_P1:
-
-			// check if we have reached airspeed  and pitch angle to switch to TRANSITION P2 mode
-			if ((_ctrl_state->airspeed >= _params_tailsitter.airspeed_trans
-			     && pitch <= PITCH_TRANSITION_FRONT_P1) || can_transition_on_ground()) {
-				_vtol_schedule.flight_mode = FW_MODE;
-				//_vtol_schedule.transition_start = hrt_absolute_time();
-			}
-
-			break;
-
-		case TRANSITION_FRONT_P2:
-
-		case TRANSITION_BACK:
-			// failsafe into fixed wing mode
+	    if (_params_tailsitter.vtol_ftrans_force_en) {  // skip judgement
 			_vtol_schedule.flight_mode = FW_MODE;
+			
+		} else {
+			switch (_vtol_schedule.flight_mode) {
+			case MC_MODE:
+				// initialise a front transition
+				_vtol_schedule.flight_mode 	= TRANSITION_FRONT_P1;
+				_vtol_schedule.transition_start = hrt_absolute_time();
+				break;
 
-			/*  **LATER***  if pitch is closer to mc (-45>)
-			*   go to transition P1
-			*/
-			break;
+			case FW_MODE:
+				break;
+
+			case TRANSITION_FRONT_P1:
+
+				// check if we have reached airspeed  and pitch angle to switch to TRANSITION P2 mode
+				if (_params_tailsitter.front_trans_pitch <= 0.0f) { // disable VT_PITCH_F_TRANS_P1 parameter
+					if ((_ctrl_state->airspeed >= _params_tailsitter.airspeed_trans
+						 && pitch <= PITCH_TRANSITION_FRONT_P1) || can_transition_on_ground())
+						_vtol_schedule.flight_mode = FW_MODE;				
+					
+				} else {                                               // enable VT_PITCH_F_TRANS_P1 parameter
+					if ((_ctrl_state->airspeed >= _params_tailsitter.airspeed_trans
+						 && pitch <= (-_params_tailsitter.front_trans_pitch)) || can_transition_on_ground())
+						_vtol_schedule.flight_mode = FW_MODE;
+						
+				}
+
+				break;
+
+			case TRANSITION_FRONT_P2:
+
+			case TRANSITION_BACK:
+				// failsafe into fixed wing mode
+				_vtol_schedule.flight_mode = FW_MODE;
+
+				/*  **LATER***  if pitch is closer to mc (-45>)
+				*   go to transition P1
+				*/
+				break;
+			}
 		}
-	} else if(_attc->is_fixed_wing_requested() == 2) {  // force to FW mode 
+	} else if (_attc->is_fixed_wing_requested() == 2) {  // force to FW mode 
 		
 		_vtol_schedule.flight_mode = FW_MODE;
 		
 	} else {
 		
-		// nothing to do!
+		// nothing to do !
 	}
 
 	// map tailsitter specific control phases to simple control modes
@@ -255,10 +299,19 @@ void Tailsitter::update_transition_state()
 	if (_vtol_schedule.flight_mode == TRANSITION_FRONT_P1) {
 
 		/** create time dependant pitch angle set point + 0.2 rad overlap over the switch value*/
-		_v_att_sp->pitch_body = _pitch_transition_start	- (fabsf(PITCH_TRANSITION_FRONT_P1 - _pitch_transition_start) *
-					(float)hrt_elapsed_time(&_vtol_schedule.transition_start) / (_params_tailsitter.front_trans_dur * 1000000.0f));
-		_v_att_sp->pitch_body = math::constrain(_v_att_sp->pitch_body , PITCH_TRANSITION_FRONT_P1 - 0.2f ,
-							_pitch_transition_start);
+		if (_params_tailsitter.front_trans_pitch <= 0.0f) {
+			_v_att_sp->pitch_body = _pitch_transition_start	- (fabsf(PITCH_TRANSITION_FRONT_P1 - _pitch_transition_start) *
+						(float)hrt_elapsed_time(&_vtol_schedule.transition_start) / (_params_tailsitter.front_trans_dur * 1000000.0f));
+			_v_att_sp->pitch_body = math::constrain(_v_att_sp->pitch_body , PITCH_TRANSITION_FRONT_P1 - 0.2f ,
+								_pitch_transition_start);			
+			
+		} else {
+			_v_att_sp->pitch_body = _pitch_transition_start	- (fabsf((-_params_tailsitter.front_trans_pitch) - _pitch_transition_start) *
+						(float)hrt_elapsed_time(&_vtol_schedule.transition_start) / (_params_tailsitter.front_trans_dur * 1000000.0f));
+			_v_att_sp->pitch_body = math::constrain(_v_att_sp->pitch_body , (-_params_tailsitter.front_trans_pitch) - 0.2f ,
+								_pitch_transition_start);			
+			
+		}
 
 		/** create time dependant throttle signal higher than  in MC and growing untill  P2 switch speed reached */
 		if (_ctrl_state->airspeed <= _params_tailsitter.airspeed_trans) {
@@ -325,9 +378,10 @@ void Tailsitter::update_transition_state()
 		}
 
 		/** create time dependant pitch angle set point stating at -pi/2 + 0.2 rad overlap over the switch value*/
-		_v_att_sp->pitch_body = M_PI_2_F + _pitch_transition_start + fabsf(PITCH_TRANSITION_BACK + 1.57f) *
+		float pitch_btrans_temp = (_params_tailsitter.back_trans_pitch <= 0.0f) ? PITCH_TRANSITION_BACK : (-_params_tailsitter.back_trans_pitch);
+		_v_att_sp->pitch_body = M_PI_2_F + _pitch_transition_start + fabsf(pitch_btrans_temp + 1.57f) *
 					(float)hrt_elapsed_time(&_vtol_schedule.transition_start) / (_params_tailsitter.back_trans_dur * 1000000.0f);
-		_v_att_sp->pitch_body = math::constrain(_v_att_sp->pitch_body , -2.0f , PITCH_TRANSITION_BACK + 0.2f);
+		_v_att_sp->pitch_body = math::constrain(_v_att_sp->pitch_body , -2.0f , pitch_btrans_temp + 0.2f);
 
 		//  throttle value is decreesed
 		if (_params_tailsitter.vtol_btrans_thr <= 0.0f) { // apple 2016/11/26
@@ -337,7 +391,7 @@ void Tailsitter::update_transition_state()
 	        matrix::Eulerf eulertemp = matrix::Quatf(_v_att->q);
 	        float pitchtemp = eulertemp.theta();
             
-            if (pitchtemp >= (PITCH_TRANSITION_BACK-0.15f)) {				
+            if (pitchtemp >= (pitch_btrans_temp-0.15f)) {				
 				_v_att_sp->thrust = _v_att_sp->thrust * _params_tailsitter.vtol_btrans_thr;
 				_v_att_sp->thrust = math::constrain(_v_att_sp->thrust, _thrust_transition_start * 0.5f, _thrust_transition_start);
 				
