@@ -179,6 +179,9 @@ private:
 	uint8_t			_conf_reg;
 	uint8_t			_temperature_counter;
 	uint8_t			_temperature_error_count;
+	
+	uint32_t 		mag_use_id; /*0:use hmc5883 1:use uavcan mag	*/
+
 
 	/**
 	 * Initialise the automatic measurement state machine and start it.
@@ -331,6 +334,7 @@ private:
 	* @return 0 if offset calibration is ok, 1 else
 	*/
 	int 			check_offset();
+	
 
 	/* this class has pointer data members, do not allow copying it */
 	HMC5883(const HMC5883 &);
@@ -368,7 +372,8 @@ HMC5883::HMC5883(device::Device *interface, const char *path, enum Rotation rota
 	_range_bits(0),
 	_conf_reg(0),
 	_temperature_counter(0),
-	_temperature_error_count(0)
+	_temperature_error_count(0),
+	mag_use_id(0)
 {
 	_device_id.devid_s.devtype = DRV_MAG_DEVTYPE_HMC5883;
 
@@ -385,6 +390,8 @@ HMC5883::HMC5883(device::Device *interface, const char *path, enum Rotation rota
 
 	// work_cancel in the dtor will explode if we don't do this...
 	memset(&_work, 0, sizeof(_work));
+	// get mag use id
+	param_get(param_find("MAG_USE_ID"), &mag_use_id);
 }
 
 HMC5883::~HMC5883()
@@ -429,8 +436,6 @@ HMC5883::init()
 
 	/* reset the device configuration */
 	reset();
-	uint32_t mag_use_id;
-	param_get(param_find("MAG_USE_ID"), &mag_use_id);
 	if(mag_use_id == 0){
 		_class_instance = register_class_devname(MAG_BASE_DEVICE_PATH);
 	}
@@ -1014,9 +1019,8 @@ HMC5883::collect()
 	new_report.y = ((yraw_f * _range_scale) - _scale.y_offset) * _scale.y_scale;
 	/* z remains z */
 	new_report.z = ((zraw_f * _range_scale) - _scale.z_offset) * _scale.z_scale;
-	uint32_t mag_use_id;
-	param_get(param_find("MAG_USE_ID"), &mag_use_id);
-	if(mag_use_id == 0){
+	
+	if (mag_use_id == 0) {
 		if (!(_pub_blocked)) {
 
 			if (_mag_topic != nullptr) {

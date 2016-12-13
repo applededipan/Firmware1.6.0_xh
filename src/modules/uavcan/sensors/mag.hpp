@@ -77,6 +77,8 @@ private:
 	*/
 	int 			check_offset();
 	bool			_calibrated;		/**< the calibration is valid */
+	
+	uint32_t  mag_use_id;
 
 	void mag_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::ahrs::MagneticFieldStrength> &msg);
 
