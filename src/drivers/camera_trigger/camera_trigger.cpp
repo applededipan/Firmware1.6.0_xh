@@ -66,6 +66,7 @@
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/vehicle_global_position.h> //added by dzp 2016/8/24
+#include <uORB/topics/home_position.h>
 #include <uORB/topics/camera_feedback.h>         //added by dzp 2016/8/24 added a topic
 #include <uORB/topics/vehicle_attitude.h>  //added by dzp 2016/9/12
 #include <uORB/topics/airspeed.h>          //added by dzp 2016/9/12
@@ -81,7 +82,7 @@
 #endif
 
 //#define __USE_SETPOINT 
-#define __CAM_TRIGGER_DEBUG
+//#define __CAM_TRIGGER_DEBUG
 #ifdef __USE_SETPOINT
 #include <uORB/topics/position_setpoint_triplet.h>
 #endif
@@ -188,6 +189,7 @@ private:
 	int			_vcommand_sub;
 	int			_vlposition_sub;
 	int     _vgposition_sub;       //added by dzp 2016/8/24
+	int			_homepos_sub;
 	int     _vattitude_sub;        //added by dzp 2016/9/12
 	int     _airspeed_sub;
 	int     _trigger_count;        //count one trigger line camera trigger times;
@@ -311,6 +313,7 @@ CameraTrigger::CameraTrigger() :
 	_vcommand_sub(-1),
 	_vlposition_sub(-1),
 	_vgposition_sub(-1),
+	_homepos_sub(-1),
 	_vattitude_sub(-1),
 	_airspeed_sub(-1),
 	_trigger_count(-1),
@@ -549,18 +552,12 @@ CameraTrigger::update_params(void *arg)
 #ifndef __PX4_POSIX
 	CameraTrigger *trig = reinterpret_cast<CameraTrigger *>(arg);
 
-	//PX4_INFO("camera trigger update params");
 	param_get(trig->_p_activation_time, &trig->_activation_time);
 	param_get(trig->_p_interval, &trig->_interval);
 	param_get(trig->_p_distance, &trig->_distance);
 	param_get(trig->_p_mode, &trig->_mode);
 	param_get(trig->_p_interface, &trig->_camera_interface_mode);
 	
-	//PX4_INFO("activation_time:%f,interval_interval:%f,distance:%f,camera_interface_mode:%d,mode:%d",
-																						//(double)trig->_activation_time,
-																						//(double)trig->_interval,
-																						//(double)trig->_distance,
-																						// trig->_camera_interface_mode,trig->_mode);
 	if (trig->_camera_interface_mode == 1) {
 			int  pin_list = 0;
 		  int  polarity = 0;
@@ -569,7 +566,6 @@ CameraTrigger::update_params(void *arg)
 			param_t _p_polarity = param_find("TRIG_POLARITY");
 			param_get(_p_pin, &pin_list);
 			param_get(_p_polarity, &polarity);
-			//PX4_INFO("camera_interface: pin_list:%d,_polarity:%d",pin_list,	polarity);	
 			trig->_camera_interface->setup(pin_list,polarity);																							
 	}
 	// need update trigger mode 
@@ -698,11 +694,16 @@ CameraTrigger::cycle_trampoline(void *arg)
 	
 	/* set timestamp the instant before the trigger goes off */
 	trig->_gps_time_usec = gpos.time_utc_usec;
-//	printf("gps_usec:%llu \n",gpos.time_utc_usec);
 	trig->_now_lat = gpos.lat;
 	trig->_now_lon = gpos.lon;
 	trig->_alt_msl = gpos.alt;
-
+	if (trig->_homepos_sub < 0) {
+		trig->_homepos_sub = orb_subscribe(ORB_ID(home_position));
+	}
+	struct home_position_s home;
+	orb_copy(ORB_ID(home_position), trig->_homepos_sub, &home);
+	trig->_alt_rel = gpos.alt - home.alt;
+	
 	if (trig->_vattitude_sub < 0) {
 			trig->_vattitude_sub = orb_subscribe(ORB_ID(vehicle_attitude));
 	}
@@ -710,10 +711,10 @@ CameraTrigger::cycle_trampoline(void *arg)
 	orb_copy(ORB_ID(vehicle_attitude), trig->_vattitude_sub, &att);
 	matrix::Eulerf euler = matrix::Quatf(att.q);
 		
-	trig->_roll = euler.phi();
-	trig->_pitch = euler.theta();
-	trig->_yaw = euler.psi();
-
+	trig->_roll = euler.phi() * (180.0f / (float)M_PI);
+	trig->_pitch = euler.theta() * (180.0f / (float)M_PI);
+	trig->_yaw = _wrap_2pi(euler.psi()) * M_RAD_TO_DEG_F;
+ 
 	if (trig->_airspeed_sub < 0) {
 				trig->_airspeed_sub = orb_subscribe(ORB_ID(airspeed));
 		}

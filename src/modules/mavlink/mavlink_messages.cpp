@@ -1502,8 +1502,8 @@ public:
 							fd = open(log_file_path, O_CREAT | O_RDWR | O_APPEND);
 							if(fd>0){
 								memset(buffer,0,sizeof(buffer));
-								// 编号           时间              纬度        经度        高度   速度   横滚   俯仰    指向 //飞行姿态  触发负载
-								sprintf(buffer, "%-4s         %-25s  %-15s  %-15s  %-10s  %-10s     %-10s%-10s%-5s  %-5s \r\n ",
+																//编号   时间  纬度  经度  绝高 相高 速度横滚俯仰指向 //飞行姿态  触发负载
+								sprintf(buffer, "%-4s\t\t%-23s%-10s\t%-12s%-8s\t%-8s\t   %-8s%-8s%-8s%-8s \r\n ",
 										"编号", "时间","纬度", "经度", "绝对高度", "相对高度", "速度", "横滚", "俯仰", "偏航");
 								write(fd,&buffer[0],strlen(buffer) + 1);
 								//fsync(fd);
