@@ -5,8 +5,7 @@
  *
  */
 #pragma once
-
-#include <drivers/drv_hrt.h>
+#ifdef __PX4_NUTTX
 #include <systemlib/param/param.h>
 
 #include <uORB/topics/vehicle_status.h>
@@ -27,9 +26,10 @@ public:
 
 	int _pins[6];
 private:
-	void setup();
+	void setup(int pins, int polarity);
 
 	param_t _p_pin;
 	bool _camera_is_on;
 
 };
+#endif

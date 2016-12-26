@@ -46,7 +46,7 @@
 __BEGIN_DECLS
 /* configuration limits */
 #define MAX_IO_TIMERS			4
-#define MAX_TIMER_IO_CHANNELS	8
+#define MAX_TIMER_IO_CHANNELS	14
 
 #define MAX_LED_TIMERS			1
 #define MAX_TIMER_LED_CHANNELS	3
@@ -58,10 +58,10 @@ typedef enum io_timer_channel_mode_t {
 	IOTimerChanMode_PWMOut  = 1,
 	IOTimerChanMode_PWMIn   = 2,
 	IOTimerChanMode_Capture = 3,
-	IOTimerChanModeSize
+	IOTimerChanModeSize,
 } io_timer_channel_mode_t;
 
-typedef uint8_t io_timer_channel_allocation_t; /* big enough to hold MAX_TIMER_IO_CHANNELS */
+typedef uint16_t io_timer_channel_allocation_t; /* big enough to hold MAX_TIMER_IO_CHANNELS */
 
 /* array of timers dedicated to PWM in and out and capture use */
 typedef struct io_timers_t {

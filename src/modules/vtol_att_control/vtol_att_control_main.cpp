@@ -81,7 +81,7 @@ VtolAttitudeControl::VtolAttitudeControl() :
 	_vehicle_cmd_sub(-1),
 	_tecs_status_sub(-1),
 	_land_detected_sub(-1),
-
+    _ctrl_state_sub(-1), // apple 2016/11/26
 	//init publication handlers
 	_actuators_0_pub(nullptr),
 	_actuators_1_pub(nullptr),
@@ -114,7 +114,7 @@ VtolAttitudeControl::VtolAttitudeControl() :
 	memset(&_vehicle_cmd, 0, sizeof(_vehicle_cmd));
 	memset(&_tecs_status, 0, sizeof(_tecs_status));
 	memset(&_land_detected, 0, sizeof(_land_detected));
-
+    memset(&_ctrl_state, 0, sizeof(_ctrl_state)); // apple 2016/11/26
 	_params.idle_pwm_mc = PWM_DEFAULT_MIN;
 	_params.vtol_motor_count = 0;
 	_params.vtol_fw_permanent_stab = 0;
@@ -447,6 +447,21 @@ VtolAttitudeControl::land_detected_poll()
 }
 
 /**
+* Check for estimator airspeed updates.
+*/
+void
+VtolAttitudeControl::ctrl_state_poll()
+{
+	bool updated;
+
+	orb_check(_ctrl_state_sub, &updated);
+
+	if (updated) {
+		orb_copy(ORB_ID(control_state), _ctrl_state_sub , &_ctrl_state);
+	} 
+}
+
+/**
 * Check received command
 */
 void
@@ -462,14 +477,26 @@ VtolAttitudeControl::handle_command()
  * Returns true if fixed-wing mode is requested.
  * Changed either via switch or via command.
  */
-bool
+char
 VtolAttitudeControl::is_fixed_wing_requested()
 {
-	bool to_fw = false;
+	char to_fw = false;
 
 	if (_manual_control_sp.transition_switch != manual_control_setpoint_s::SWITCH_POS_NONE &&
 	    _v_control_mode.flag_control_manual_enabled) {
-		to_fw = (_manual_control_sp.transition_switch == manual_control_setpoint_s::SWITCH_POS_ON);
+			if (_manual_control_sp.transition_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
+				// force to fw_mode 
+				to_fw = 2; 
+				
+			} else if (_manual_control_sp.transition_switch == manual_control_setpoint_s::SWITCH_POS_MIDDLE) {
+				// normal transition to fw_mode 
+				to_fw = 1; 
+				
+			} else if (_manual_control_sp.transition_switch == manual_control_setpoint_s::SWITCH_POS_OFF) {		
+				// normal transition to mc_mode
+				to_fw = 0; 
+				
+			}
 
 	} else {
 		// listen to transition commands if not in manual or mode switch is not mapped
@@ -633,7 +660,7 @@ void VtolAttitudeControl::task_main()
 	_vehicle_cmd_sub	   = orb_subscribe(ORB_ID(vehicle_command));
 	_tecs_status_sub = orb_subscribe(ORB_ID(tecs_status));
 	_land_detected_sub = orb_subscribe(ORB_ID(vehicle_land_detected));
-
+    _ctrl_state_sub = orb_subscribe(ORB_ID(control_state)); // apple 2016/11/26
 	_actuator_inputs_mc    = orb_subscribe(ORB_ID(actuator_controls_virtual_mc));
 	_actuator_inputs_fw    = orb_subscribe(ORB_ID(actuator_controls_virtual_fw));
 
@@ -712,7 +739,7 @@ void VtolAttitudeControl::task_main()
 		vehicle_cmd_poll();
 		tecs_status_poll();
 		land_detected_poll();
-
+        ctrl_state_poll(); // apple 2016/11/26
 		// update the vtol state machine which decides which mode we are in
 		_vtol_type->update_vtol_state();
 

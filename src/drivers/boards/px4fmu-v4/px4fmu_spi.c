@@ -93,10 +93,10 @@ __EXPORT void stm32_spiinitialize(void)
 	px4_arch_configgpio(GPIO_DRDY_ICM_20608_G);
 #endif
 
-#ifdef CONFIG_STM32_SPI2
+//#ifdef CONFIG_STM32_SPI2
 	px4_arch_configgpio(GPIO_SPI_CS_FRAM);
 	px4_arch_gpiowrite(GPIO_SPI_CS_FRAM, 1);
-#endif
+//#endif
 
 }
 
@@ -195,6 +195,18 @@ __EXPORT uint8_t stm32_spi2status(FAR struct spi_dev_s *dev, enum spi_dev_e devi
 }
 #endif
 
+__EXPORT void stm32_spi4select(FAR struct spi_dev_s *dev, enum spi_dev_e devid, bool selected)
+{
+	/* there can only be one device on this bus, so always select it */
+	px4_arch_gpiowrite(GPIO_SPI_CS_FRAM, !selected);
+}
+
+__EXPORT uint8_t stm32_spi4status(FAR struct spi_dev_s *dev, enum spi_dev_e devid)
+{
+	/* FRAM is always present */
+	return SPI_STATUS_PRESENT;
+}
+
 __EXPORT void board_spi_reset(int ms)
 {
 	/* disable SPI bus */
@@ -273,3 +285,4 @@ __EXPORT void board_spi_reset(int ms)
 #endif
 
 }
+

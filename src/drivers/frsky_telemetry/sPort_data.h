@@ -104,4 +104,11 @@ void sPort_send_GPS_TIME(int uart);
 void sPort_send_NAV_STATE(int uart);
 void sPort_send_GPS_FIX(int uart);
 
+//! apple 
+void digicam_control_zoom_stop(int uart);
+void digicam_control_zoom_in(int uart);
+void digicam_control_zoom_out(int uart);
+void digicam_control_zoom_vin(int uart, uint8_t speed);
+void digicam_control_zoom_vout(int uart, uint8_t speed);
+
 #endif /* _SPORT_TELEMETRY_H */

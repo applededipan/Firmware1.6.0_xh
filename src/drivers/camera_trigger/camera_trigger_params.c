@@ -38,8 +38,9 @@
  * @author Mohammed Kabir <mhkabir98@gmail.com>
  * @author Andreas Bircher <andreas@wingtra.com>
  */
-
+#ifdef __PX4_NUTTX
 #include <nuttx/config.h>
+#endif
 #include <systemlib/param/param.h>
 
 /**
@@ -54,7 +55,7 @@
 *
 * @group Camera trigger
 */
-PARAM_DEFINE_INT32(TRIG_INTERFACE, 2);
+PARAM_DEFINE_INT32(TRIG_INTERFACE, 1);
 
 /**
  * Camera trigger interval
@@ -123,7 +124,7 @@ PARAM_DEFINE_INT32(TRIG_MODE, 0);
  * @reboot_required true
  * @group Camera trigger
  */
-PARAM_DEFINE_INT32(TRIG_PINS, 56);
+PARAM_DEFINE_INT32(TRIG_PINS, 12);
 
 /**
  * Camera trigger distance

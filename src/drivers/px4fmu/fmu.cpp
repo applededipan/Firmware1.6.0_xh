@@ -124,6 +124,8 @@ public:
 		MODE_4PWM,
 		MODE_6PWM,
 		MODE_8PWM,
+		MODE_12PWM,
+		MODE_14PWM,
 		MODE_4CAP,
 		MODE_5CAP,
 		MODE_6CAP,
@@ -366,7 +368,7 @@ PX4FMU::PX4FMU() :
 
 #ifdef GPIO_SBUS_INV
 	// this board has a GPIO to control SBUS inversion
-	px4_arch_configgpio(GPIO_SBUS_INV);
+	//px4_arch_configgpio(GPIO_SBUS_INV);
 #endif
 
 	// If there is no safety button, disable it on boot.
@@ -612,7 +614,30 @@ PX4FMU::set_mode(Mode mode)
 		_pwm_initialized = false;
 		break;
 #endif
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 12
 
+	case MODE_12PWM: // Brainybee PWMs as 12 PWM outs
+		DEVICE_DEBUG("MODE_12PWM");
+		/* default output rates */
+		_pwm_default_rate = 50;
+		_pwm_alt_rate = 50;
+		_pwm_alt_rate_channels = 0;
+		_pwm_mask = 0x0fff;
+		_pwm_initialized = false;
+		break;
+#endif
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 14
+
+	case MODE_14PWM: // Brainybee PWMs as 12 PWM outs
+		DEVICE_DEBUG("MODE_14PWM");
+		/* default output rates */
+		_pwm_default_rate = 50;
+		_pwm_alt_rate = 50;
+		_pwm_alt_rate_channels = 0;
+		_pwm_mask = 0x3fff;
+		_pwm_initialized = false;
+		break;
+#endif
 	case MODE_NONE:
 		DEVICE_DEBUG("MODE_NONE");
 
@@ -883,7 +908,7 @@ void PX4FMU::rc_io_invert(bool invert)
 
 	if (!invert) {
 		// set FMU_RC_OUTPUT high to pull RC_INPUT up
-		px4_arch_gpiowrite(GPIO_RC_OUT, 1);
+		//px4_arch_gpiowrite(GPIO_RC_OUT, 1);
 	}
 
 #endif
@@ -939,7 +964,7 @@ PX4FMU::cycle()
 		sbus_config(_rcs_fd, false);
 #ifdef GPIO_PPM_IN
 		// disable CPPM input by mapping it away from the timer capture input
-		px4_arch_unconfiggpio(GPIO_PPM_IN);
+		//px4_arch_unconfiggpio(GPIO_PPM_IN);
 #endif
 #endif
 		param_find("MOT_SLEW_MAX");
@@ -1076,7 +1101,15 @@ PX4FMU::cycle()
 			case MODE_8PWM:
 				num_outputs = 8;
 				break;
-
+			
+			case MODE_12PWM:
+				num_outputs=12;
+				break;
+				
+			case MODE_14PWM:
+				num_outputs=14;
+				break;
+				
 			default:
 				num_outputs = 0;
 				break;
@@ -1448,7 +1481,7 @@ PX4FMU::cycle()
 		if (_rc_scan_begin == 0) {
 			_rc_scan_begin = _cycle_timestamp;
 			// Configure timer input pin for CPPM
-			px4_arch_configgpio(GPIO_PPM_IN);
+			//px4_arch_configgpio(GPIO_PPM_IN);
 			rc_io_invert(false);
 
 		} else if (_rc_scan_locked
@@ -1469,7 +1502,7 @@ PX4FMU::cycle()
 
 		} else {
 			// disable CPPM input by mapping it away from the timer capture input
-			px4_arch_unconfiggpio(GPIO_PPM_IN);
+			//px4_arch_unconfiggpio(GPIO_PPM_IN);
 			// Scan the next protocol
 			set_rc_scan_state(RC_SCAN_SBUS);
 		}
@@ -1614,6 +1647,15 @@ PX4FMU::ioctl(file *filp, int cmd, unsigned long arg)
 #endif
 #if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 8
 	case MODE_8PWM:
+#endif
+//12pwm
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 12
+	case MODE_12PWM:
+		
+#endif
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 14
+	case MODE_14PWM:
+		
 #endif
 		ret = pwm_ioctl(filp, cmd, arg);
 		break;
@@ -1880,6 +1922,31 @@ PX4FMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 			arg = (unsigned long)&pwm;
 			break;
 		}
+		
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 14
+
+	case PWM_SERVO_SET(13):
+	case PWM_SERVO_SET(12):
+		if (_mode < MODE_14PWM) {
+			ret = -EINVAL;
+			break;
+		}
+
+#endif	
+		
+//12 pwm
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 12
+
+	case PWM_SERVO_SET(11):
+	case PWM_SERVO_SET(10):
+	case PWM_SERVO_SET(9):
+	case PWM_SERVO_SET(8):
+		if (_mode < MODE_12PWM) {
+			ret = -EINVAL;
+			break;
+		}
+
+#endif
 
 #if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 8
 
@@ -1928,6 +1995,30 @@ PX4FMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 		}
 
 		break;
+		
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 14
+
+	case PWM_SERVO_GET(13):
+	case PWM_SERVO_GET(12):
+		if (_mode < MODE_14PWM) {
+			ret = -EINVAL;
+			break;
+		}
+
+#endif
+//12pwm
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 12
+
+	case PWM_SERVO_GET(11):
+	case PWM_SERVO_GET(10):
+	case PWM_SERVO_GET(9):
+	case PWM_SERVO_GET(8):
+		if (_mode < MODE_12PWM) {
+			ret = -EINVAL;
+			break;
+		}
+
+#endif
 
 #if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 8
 
@@ -1983,12 +2074,35 @@ PX4FMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 	case PWM_SERVO_GET_RATEGROUP(6):
 	case PWM_SERVO_GET_RATEGROUP(7):
 #endif
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 12
+	case PWM_SERVO_GET_RATEGROUP(8):
+	case PWM_SERVO_GET_RATEGROUP(9):
+	case PWM_SERVO_GET_RATEGROUP(10):
+	case PWM_SERVO_GET_RATEGROUP(11):
+#endif
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 14
+	case PWM_SERVO_GET_RATEGROUP(12):
+	case PWM_SERVO_GET_RATEGROUP(13):
+#endif
 		*(uint32_t *)arg = up_pwm_servo_get_rate_group(cmd - PWM_SERVO_GET_RATEGROUP(0));
 		break;
 
 	case PWM_SERVO_GET_COUNT:
 	case MIXERIOCGETOUTPUTCOUNT:
 		switch (_mode) {
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 14
+
+		case MODE_14PWM:
+			*(unsigned *)arg = 14;
+			break;
+#endif
+
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 12
+
+		case MODE_12PWM:
+			*(unsigned *)arg = 12;
+			break;
+#endif
 
 #if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 8
 
@@ -2072,6 +2186,19 @@ PX4FMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 				break;
 #endif
 
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >=12
+
+			case 12:
+				set_mode(MODE_12PWM);
+				break;
+#endif
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >=14
+
+			case 14:
+				set_mode(MODE_14PWM);
+				break;
+#endif
+
 			default:
 				ret = -EINVAL;
 				break;
@@ -2116,6 +2243,14 @@ PX4FMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 
 			case PWM_SERVO_MODE_8PWM:
 				ret = set_mode(MODE_8PWM);
+				break;
+			
+			case PWM_SERVO_MODE_12PWM:
+				ret = set_mode(MODE_12PWM);
+				break;
+			
+			case PWM_SERVO_MODE_14PWM:
+				ret = set_mode(MODE_14PWM);
 				break;
 
 			case PWM_SERVO_MODE_4CAP:
@@ -2253,7 +2388,7 @@ ssize_t
 PX4FMU::write(file *filp, const char *buffer, size_t len)
 {
 	unsigned count = len / 2;
-	uint16_t values[8];
+	uint16_t values[14];
 
 #if BOARD_HAS_PWM == 0
 	return 0;
@@ -2694,6 +2829,14 @@ fmu_new_mode(PortMode new_mode)
 #endif
 #if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM == 8
 		servo_mode = PX4FMU::MODE_8PWM;
+#endif
+
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM == 12
+		servo_mode = PX4FMU::MODE_12PWM;
+#endif
+
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM == 14
+		servo_mode = PX4FMU::MODE_14PWM;
 #endif
 		break;
 

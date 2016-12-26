@@ -94,7 +94,7 @@
 #include <lib/conversion/rotation.h>
 
 #include "mpu6000.h"
-
+#include "adxrs620.h"
 /*
   we set the timer interrupt to run a bit faster than the desired
   sample rate and then throw away duplicates by comparing
@@ -259,7 +259,7 @@ private:
 	/**
 	 * is_mpu_device
 	 */
-	bool 		is_mpu_device() { return _device_type == 6000;}
+	bool 		is_mpu_device() { return (_device_type == 6000) || (_device_type == ADXRS620);}
 
 
 #if defined(USE_I2C)
@@ -407,6 +407,12 @@ private:
 	  check that key registers still have the right value
 	 */
 	void			check_registers(void);
+
+	/*
+	  adxrs620 adc sample fun
+	 */
+	uint16_t  sample(unsigned channel);
+
 
 	/* do not allow to copy this class due to pointer data members */
 	MPU6000(const MPU6000 &);
@@ -745,6 +751,7 @@ int MPU6000::reset()
 	write_checked_reg(MPUREG_GYRO_CONFIG, BITS_FS_2000DPS);
 	usleep(1000);
 
+	if(_device_type != ADXRS620){
 	// correct gyro scale factors
 	// scale to rad/s in SI units
 	// 2000 deg/s = (2000/180)*PI = 34.906585 rad/s
@@ -752,6 +759,11 @@ int MPU6000::reset()
 	// 1/(2^15)*(2000/180)*PI
 	_gyro_range_scale = (0.0174532 / 16.4);//1.0f / (32768.0f * (2000.0f / 180.0f) * M_PI_F);
 	_gyro_range_rad_s = (2000.0f / 180.0f) * M_PI_F;
+
+	}else{
+			_gyro_range_scale =  0.0035517;
+			_gyro_range_rad_s = (300.0f / 180.0f) * M_PI_F;
+	}
 
 	set_accel_range(8);
 
@@ -1740,6 +1752,41 @@ MPU6000::measure_trampoline(void *arg)
 	/* make another measurement */
 	dev->measure();
 }
+
+uint16_t
+MPU6000::sample(unsigned channel)
+{
+	//perf_begin(_sample_perf);
+
+	/* clear any previous EOC */
+	if (rSR & ADC_SR_EOC) {
+			rSR &= ~ADC_SR_EOC;
+	}
+
+		/* run a single conversion right now - should take about 60 cycles (a few microseconds) max */
+
+	rSQR3 = channel;
+	rCR2 |= ADC_CR2_SWSTART;
+
+	/* wait for the conversion to complete */
+	hrt_abstime now = hrt_absolute_time();
+
+	while (!(rSR & ADC_SR_EOC)) {
+
+	/* don't wait for more than 50us, since that means something broke - should reset here if we see this */
+	if ((hrt_absolute_time() - now) > 50) {
+			DEVICE_LOG("sample timeout");
+			return 0xffff;
+		}
+	}
+
+	/* read the result and clear EOC */
+	uint16_t result = rDR;
+
+	//perf_end(_sample_perf);
+	return result;
+}
+
 void
 MPU6000::check_registers(void)
 {
@@ -1826,6 +1873,8 @@ MPU6000::measure()
 		int16_t		gyro_z;
 	} report;
 
+	int16_t gx = 0, gy = 0, gz = 0;
+
 	/* start measuring */
 	perf_begin(_sample_perf);
 
@@ -1833,6 +1882,11 @@ MPU6000::measure()
 	 * Fetch the full set of measurements from the MPU6000 in one pass.
 	 */
 
+	if(_device_type == ADXRS620){
+	       gx =  sample(ADXRS620_X_CHANNL) - 2048;
+	       gy =  sample(ADXRS620_Y_CHANNL) - 2048;
+	       gz =  sample(ADXRS620_Z_CHANNL) - 2048;
+	}
 	// sensor transfer at high clock speed
 
 	if (sizeof(mpu_report) != _interface->read(MPU6000_SET_SPEED(MPUREG_INT_STATUS, MPU6000_HIGH_BUS_SPEED),
@@ -1871,10 +1925,15 @@ MPU6000::measure()
 	report.accel_z = int16_t_from_bytes(mpu_report.accel_z);
 
 	report.temp = int16_t_from_bytes(mpu_report.temp);
-
-	report.gyro_x = int16_t_from_bytes(mpu_report.gyro_x);
-	report.gyro_y = int16_t_from_bytes(mpu_report.gyro_y);
-	report.gyro_z = int16_t_from_bytes(mpu_report.gyro_z);
+   if(_device_type  !=  ADXRS620 ){
+	   report.gyro_x = int16_t_from_bytes(mpu_report.gyro_x);
+	   report.gyro_y = int16_t_from_bytes(mpu_report.gyro_y);
+	   report.gyro_z = int16_t_from_bytes(mpu_report.gyro_z);
+   }else{
+	       report.gyro_x = gx;
+		   report.gyro_y = gy;
+		   report.gyro_z = gz;
+   }
 
 	if (report.accel_x == 0 &&
 	    report.accel_y == 0 &&
@@ -1909,17 +1968,20 @@ MPU6000::measure()
 	 */
 	int16_t accel_xt = report.accel_y;
 	int16_t accel_yt = ((report.accel_x == -32768) ? 32767 : -report.accel_x);
-
-	int16_t gyro_xt = report.gyro_y;
-	int16_t gyro_yt = ((report.gyro_x == -32768) ? 32767 : -report.gyro_x);
+    if(_device_type != ADXRS620){
+    	int16_t gyro_xt = report.gyro_y;
+    	int16_t gyro_yt = ((report.gyro_x == -32768) ? 32767 : -report.gyro_x);
+    	report.gyro_x = gyro_xt;
+    	report.gyro_y = gyro_yt;
+    }
 
 	/*
 	 * Apply the swap
 	 */
 	report.accel_x = accel_xt;
 	report.accel_y = accel_yt;
-	report.gyro_x = gyro_xt;
-	report.gyro_y = gyro_yt;
+	//report.gyro_x = gyro_xt;
+	//report.gyro_y = gyro_yt;
 
 	/*
 	 * Report buffers.
@@ -2004,8 +2066,15 @@ MPU6000::measure()
 	yraw_f = report.gyro_y;
 	zraw_f = report.gyro_z;
 
-	// apply user specified rotation
-	rotate_3f(_rotation, xraw_f, yraw_f, zraw_f);
+	if(_device_type != ADXRS620){
+		// apply user specified rotation
+		rotate_3f(_rotation, xraw_f, yraw_f, zraw_f);
+	}	else{
+		rotate_3f(ROTATION_YAW_180, xraw_f, yraw_f, zraw_f);
+#ifdef HWV1_4
+		xraw_f = -xraw_f;
+#endif
+	}
 
 	float x_gyro_in_new = ((xraw_f * _gyro_range_scale) - _gyro_scale.x_offset) * _gyro_scale.x_scale;
 	float y_gyro_in_new = ((yraw_f * _gyro_range_scale) - _gyro_scale.y_offset) * _gyro_scale.y_scale;
@@ -2243,7 +2312,7 @@ start_bus(struct mpu6000_bus_option &bus, enum Rotation rotation, int range, int
 		return false;
 	}
 
-	device::Device *interface = bus.interface_constructor(bus.busnum, device_type, external);
+	device::Device *interface = bus.interface_constructor(bus.busnum, (device_type == ADXRS620 ?  6000 : device_type) , external);
 
 	if (interface == nullptr) {
 		warnx("no device on bus %u", (unsigned)bus.busid);

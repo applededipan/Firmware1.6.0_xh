@@ -336,6 +336,7 @@ private:
 		float rc_offboard_th;
 		float rc_killswitch_th;
 		float rc_trans_th;
+		float rc_trans_ext_th; // apple 2016/11/26
 		float rc_gear_th;
 		bool rc_assist_inv;
 		bool rc_auto_inv;
@@ -347,6 +348,7 @@ private:
 		bool rc_offboard_inv;
 		bool rc_killswitch_inv;
 		bool rc_trans_inv;
+		bool rc_trans_ext_inv; // apple 2016/11/26
 		bool rc_gear_inv;
 
 		float battery_voltage_scaling;
@@ -416,6 +418,7 @@ private:
 		param_t rc_offboard_th;
 		param_t rc_killswitch_th;
 		param_t rc_trans_th;
+		param_t rc_trans_ext_th; // apple 2016/11/26
 		param_t rc_gear_th;
 
 		param_t battery_voltage_scaling;
@@ -710,6 +713,7 @@ Sensors::Sensors() :
 	_parameter_handles.rc_offboard_th = param_find("RC_OFFB_TH");
 	_parameter_handles.rc_killswitch_th = param_find("RC_KILLSWITCH_TH");
 	_parameter_handles.rc_trans_th = param_find("RC_TRANS_TH");
+	_parameter_handles.rc_trans_ext_th = param_find("RC_TRANS_EXT_TH"); // apple 2016/11/26
 	_parameter_handles.rc_gear_th = param_find("RC_GEAR_TH");
 
 
@@ -745,6 +749,24 @@ Sensors::Sensors() :
 	(void)param_find("CAL_MAG1_ID");
 	(void)param_find("CAL_MAG2_ID");
 	(void)param_find("CAL_MAG0_ROT");
+	(void)param_find("CAL_ACC0_XOFF");
+	(void)param_find("CAL_ACC0_YOFF");
+	(void)param_find("CAL_ACC0_ZOFF");
+	(void)param_find("CAL_ACC0_XSCALE");
+	(void)param_find("CAL_ACC0_YSCALE");
+	(void)param_find("CAL_ACC0_ZSCALE");
+	(void)param_find("CAL_GYRO0_XOFF");
+	(void)param_find("CAL_GYRO0_YOFF");
+	(void)param_find("CAL_GYRO0_ZOFF");
+	(void)param_find("CAL_GYRO0_XSCALE");
+	(void)param_find("CAL_GYRO0_YSCALE");
+	(void)param_find("CAL_GYRO0_ZSCALE");
+	(void)param_find("CAL_MAG0_XOFF");
+	(void)param_find("CAL_MAG0_YOFF");
+	(void)param_find("CAL_MAG0_ZOFF");
+	(void)param_find("CAL_MAG0_XSCALE");
+	(void)param_find("CAL_MAG0_YSCALE");
+	(void)param_find("CAL_MAG0_ZSCALE");
 	(void)param_find("CAL_MAG1_ROT");
 	(void)param_find("CAL_MAG2_ROT");
 	(void)param_find("CAL_MAG_SIDES");
@@ -983,6 +1005,9 @@ Sensors::parameters_update()
 	param_get(_parameter_handles.rc_trans_th, &(_parameters.rc_trans_th));
 	_parameters.rc_trans_inv = (_parameters.rc_trans_th < 0);
 	_parameters.rc_trans_th = fabs(_parameters.rc_trans_th);
+	param_get(_parameter_handles.rc_trans_ext_th, &(_parameters.rc_trans_ext_th)); // apple 2016/11/26
+	_parameters.rc_trans_ext_inv = (_parameters.rc_trans_ext_th < 0);
+	_parameters.rc_trans_ext_th = fabs(_parameters.rc_trans_ext_th);	
 	param_get(_parameter_handles.rc_gear_th, &(_parameters.rc_gear_th));
 	_parameters.rc_gear_inv = (_parameters.rc_gear_th < 0);
 	_parameters.rc_gear_th = fabs(_parameters.rc_gear_th);
@@ -2208,8 +2233,8 @@ Sensors::rc_poll()
 						 _parameters.rc_offboard_th, _parameters.rc_offboard_inv);
 			manual.kill_switch = get_rc_sw2pos_position(rc_channels_s::RC_CHANNELS_FUNCTION_KILLSWITCH,
 					     _parameters.rc_killswitch_th, _parameters.rc_killswitch_inv);
-			manual.transition_switch = get_rc_sw2pos_position(rc_channels_s::RC_CHANNELS_FUNCTION_TRANSITION,
-						   _parameters.rc_trans_th, _parameters.rc_trans_inv);
+            manual.transition_switch = get_rc_sw3pos_position(rc_channels_s::RC_CHANNELS_FUNCTION_TRANSITION,   // apple 2016/11/26
+			              _parameters.rc_trans_th, _parameters.rc_trans_inv, _parameters.rc_trans_ext_th, _parameters.rc_trans_ext_inv);
 			manual.gear_switch = get_rc_sw2pos_position(rc_channels_s::RC_CHANNELS_FUNCTION_GEAR,
 					     _parameters.rc_gear_th, _parameters.rc_gear_inv);
 
@@ -2463,7 +2488,7 @@ Sensors::task_main()
 	// TODO: move adc_init into the sensors_init call.
 	ret = ret || adc_init();
 #endif
-
+	adc_init();
 	if (ret) {
 		PX4_ERR("sensor initialization failed");
 	}

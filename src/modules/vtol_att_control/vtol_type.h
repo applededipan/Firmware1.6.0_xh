@@ -165,7 +165,7 @@ protected:
 	struct battery_status_s 			*_batt_status; 				// battery status
 	struct tecs_status_s				*_tecs_status;
 	struct vehicle_land_detected_s			*_land_detected;
-
+	struct control_state_s              *_ctrl_state; // apple 2016/11/26
 	struct Params 					*_params;
 
 	bool flag_idle_mc = true;		//false = "idle is set for fixed wing mode"; true = "idle is set for multicopter mode"

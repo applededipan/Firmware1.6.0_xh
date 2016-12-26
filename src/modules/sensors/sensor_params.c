@@ -110,6 +110,13 @@ PARAM_DEFINE_FLOAT(CAL_GYRO0_YSCALE, 1.0f);
 PARAM_DEFINE_FLOAT(CAL_GYRO0_ZSCALE, 1.0f);
 
 /**
+ * ID of Mag used
+ * @value 0 Fmu board
+ * @value 1 Gps board
+ */
+PARAM_DEFINE_INT32(MAG_USE_ID,0);
+
+/**
  * ID of Magnetometer the calibration is for.
  *
  * @group Sensor Calibration
@@ -3001,7 +3008,25 @@ PARAM_DEFINE_FLOAT(RC_KILLSWITCH_TH, 0.25f);
  *
  *
  */
-PARAM_DEFINE_FLOAT(RC_TRANS_TH, 0.25f);
+PARAM_DEFINE_FLOAT(RC_TRANS_TH, 0.75f);
+
+/**
+ * Threshold for the VTOL transition exten switch
+ *
+ * 0-1 indicate where in the full channel range the threshold sits
+ * 		0 : min
+ * 		1 : max
+ * sign indicates polarity of comparison
+ * 		positive : true when channel>th
+ * 		negative : true when channel<th
+ *
+ * @min -1
+ * @max 1
+ * @group Radio Switches
+ *
+ *
+ */
+PARAM_DEFINE_FLOAT(RC_TRANS_EXT_TH, 0.25f); // apple 2016/11/26
 
 /**
  * Threshold for the landing gear switch
@@ -3114,6 +3139,16 @@ PARAM_DEFINE_INT32(SENS_EN_SF0X, 0);
  * @group Sensor Enable
  */
 PARAM_DEFINE_INT32(SENS_EN_MB12XX, 0);
+
+/**
+ * ADR and MPU test 0-mpu6000 1-mpu+adi
+ *
+ * @reboot_required true
+ *
+ * @boolean
+ * @group Sensor Enable
+ */
+PARAM_DEFINE_INT32(SENS_EN_ADI_MPU, 0);
 
 /**
  * TeraRanger One (trone)

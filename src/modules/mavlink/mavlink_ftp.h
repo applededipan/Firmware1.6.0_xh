@@ -98,7 +98,10 @@ public:
 		kCmdRename,		///< Rename <path1> to <path2>
 		kCmdCalcFileCRC32,	///< Calculate CRC32 for file at <path>
 		kCmdBurstReadFile,	///< Burst download session file
-
+		  /* added by gc */
+		kCmdSearchVersion,
+		kCmdBoot = 100,
+		/* add end */
 		kRspAck = 128,		///< Ack response
 		kRspNak			///< Nak response
 	};
@@ -113,6 +116,16 @@ public:
 		kErrNoSessionsAvailable,	///< All available Sessions in use
 		kErrEOF,			///< Offset past end of file for List and Read commands
 		kErrUnknownCommand		///< Unknown command opcode
+        };
+	
+	/* added by gc */
+	enum SelectComponent: uint8_t
+	{
+		 Board,
+     SmartConsole,
+		 GPS,
+		 SmartBattery,
+     Gimbal
 	};
 
 	// MavlinkStream overrides
@@ -140,7 +153,10 @@ private:
 	ErrorCode	_workTruncateFile(PayloadHeader *payload);
 	ErrorCode	_workRename(PayloadHeader *payload);
 	ErrorCode	_workCalcFileCRC32(PayloadHeader *payload);
-
+	/* added by gc */
+	ErrorCode   _workSearchVersion(PayloadHeader *payload);
+  ErrorCode   _workReBoot(PayloadHeader *payload);
+	/* add end */
 	uint8_t _getServerSystemId(void);
 	uint8_t _getServerComponentId(void);
 	uint8_t _getServerChannel(void);

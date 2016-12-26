@@ -5,7 +5,7 @@
  *
  */
 #pragma once
-
+#ifdef __PX4_NUTTX
 #include <systemlib/err.h>
 #include <systemlib/param/param.h>
 #include <board_config.h>
@@ -28,18 +28,15 @@ public:
 
 private:
 
-	void setup();
+	void setup(int pins, int polarity);
 
 	param_t _p_pin;
 	param_t _p_polarity;
 
-	static constexpr uint32_t _gpios[6] = {
-		GPIO_GPIO0_OUTPUT,
-		GPIO_GPIO1_OUTPUT,
-		GPIO_GPIO2_OUTPUT,
-		GPIO_GPIO3_OUTPUT,
-		GPIO_GPIO4_OUTPUT,
-		GPIO_GPIO5_OUTPUT
+	static constexpr uint32_t _gpios[2] = {
+		GPIO_GPIO14_OUTPUT,
+		GPIO_GPIO15_OUTPUT
 	};
 
 };
+#endif

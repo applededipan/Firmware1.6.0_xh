@@ -115,6 +115,7 @@ Navigator::Navigator() :
 	_offboard_mission_sub(-1),
 	_param_update_sub(-1),
 	_vehicle_command_sub(-1),
+	_pos_sp_current_airspeed_sub(-1),
 	_pos_sp_triplet_pub(nullptr),
 	_mission_result_pub(nullptr),
 	_geofence_result_pub(nullptr),
@@ -179,6 +180,9 @@ Navigator::Navigator() :
 	_navigation_mode_array[9] = &_follow_target;
 
 	updateParams();
+	param_get(param_find("TAKEOFF_D_P_EN"),&takeoff_d_p_enable);
+	param_get(param_find("TAKEOFF_D_P_DIS"),&takeoff_d_p_distance);
+	param_get(param_find("TAKEOFF_D_P_ALT"),&takeoff_d_p_climb_alt);
 }
 
 Navigator::~Navigator()
@@ -312,7 +316,10 @@ Navigator::task_main()
 	_offboard_mission_sub = orb_subscribe(ORB_ID(offboard_mission));
 	_param_update_sub = orb_subscribe(ORB_ID(parameter_update));
 	_vehicle_command_sub = orb_subscribe(ORB_ID(vehicle_command));
-
+	_pos_sp_current_airspeed_sub = orb_subscribe(ORB_ID(position_setpoint_current_airspeed));
+	_takeoff_dynamic_point_pub = orb_advertise(ORB_ID(takeoff_dynamic_point), &_takeoff_dynamic_point_triplet);
+  takeoff_dynamic_point_sub = orb_subscribe(ORB_ID(takeoff_dynamic_point));
+  memset(&_takeoff_dynamic_point_triplet,0,sizeof(takeoff_dynamic_point_s));
 	/* copy all topics first time */
 	vehicle_status_update();
 	vehicle_land_detected_update();
@@ -384,9 +391,12 @@ Navigator::task_main()
 
 		/* parameters updated */
 		orb_check(_param_update_sub, &updated);
-		if (updated) {
+		if  (updated)  {
 			params_update();
 			updateParams();
+			param_get(param_find("TAKEOFF_D_P_EN"),&takeoff_d_p_enable);
+			param_get(param_find("TAKEOFF_D_P_DIS"),&takeoff_d_p_distance);
+			param_get(param_find("TAKEOFF_D_P_ALT"),&takeoff_d_p_climb_alt);
 		}
 
 		/* vehicle control mode updated */
@@ -644,7 +654,99 @@ Navigator::task_main()
 			_pos_sp_triplet.next.valid = false;
 			_pos_sp_triplet_updated = true;
 		}
+	
+		/*ye-20160923*/
+		bool pos_sp_current_airspeed_updated = 0;
+		orb_check(_pos_sp_current_airspeed_sub, &pos_sp_current_airspeed_updated);
+		if (pos_sp_current_airspeed_updated) {
+			position_setpoint_current_airspeed_s read_current_airspeed;
+			orb_copy(ORB_ID(position_setpoint_current_airspeed), _pos_sp_current_airspeed_sub, &read_current_airspeed);
+			set_cruising_speed(read_current_airspeed.airspeed+get_cruising_speed());
+			_pos_sp_triplet.current.cruising_speed = get_cruising_speed();
+		}
 
+//		mavlink_log_info(&_mavlink_log_pub,"_pos_sp_triplet.current.type  = %d\n",_pos_sp_triplet.current.type);
+		if (takeoff_d_p_enable) {
+			static double lat, lon;
+			static bool takeoff_d_p_end = 0;
+			static uint64_t timestamp_break= 1 ;
+
+			if ((_pos_sp_triplet.current.type == position_setpoint_s::SETPOINT_TYPE_TAKEOFF)&&(!takeoff_d_p_end)) {
+					double distance = get_distance_to_next_waypoint(
+														(double)_home_pos.lat,(double)_home_pos.lon,
+														_global_pos.lat ,_global_pos.lon );
+
+				if (fabs(distance) < (double)(takeoff_d_p_distance))	{
+					updated = false;
+					orb_check(takeoff_dynamic_point_sub, &updated);
+
+					if (updated)	{
+						orb_copy(ORB_ID(takeoff_dynamic_point), takeoff_dynamic_point_sub, &_takeoff_dynamic_point_triplet);
+					}
+
+					if (takeoff_d_p_end)	{
+						_takeoff_dynamic_point_triplet.enable = 0;
+					}	else if((fabs(distance)>(double)(takeoff_d_p_distance-5))) {
+						/*|| (timestamp_break>50&&timestamp_break<1000000)*/ 	 
+						_pos_sp_triplet_updated = true;
+
+						mission_item_s mission_item;
+						_mission.read_first_mission_item(&mission_item);
+						_pos_sp_triplet.current.lat = mission_item.lat;
+						_pos_sp_triplet.current.lon = mission_item.lon;
+						_pos_sp_triplet.current.valid = true;
+//						mavlink_log_info(&_mavlink_log_pub, "TAKEOFF_D_P_EN = 0, TAKEOFF_D_P End");
+						_takeoff_dynamic_point_triplet.enable = 0;
+						takeoff_d_p_end = 1;
+					}	else if(!_takeoff_dynamic_point_triplet.enable)	{
+						_pos_sp_triplet_updated = true;
+
+						vehicle_attitude_s att;
+						static int att_sub = 0;
+						if(att_sub == 0) {
+							att_sub = orb_subscribe(ORB_ID(vehicle_attitude));
+						}	else {
+							orb_check(att_sub,&updated);
+							orb_copy(ORB_ID(vehicle_attitude), att_sub, &att);
+						}
+
+						uint64_t timestamp_now = att.timestamp/1000000;
+						if ((timestamp_now - timestamp_break) >= 1/*&& (timestamp_now - timestamp_break) < 10000000000*/)	{
+							timestamp_break = timestamp_now ;
+							matrix::Eulerf euler = matrix::Quatf(att.q);
+							float yaw = euler.psi();
+							waypoint_from_heading_and_distance( _home_pos.lat , _home_pos.lon, yaw  , takeoff_d_p_distance,
+									&lat,&lon);
+
+							_pos_sp_triplet.current.lat = lat;
+							_pos_sp_triplet.current.lon = lon;
+							_pos_sp_triplet.current.valid = true;
+
+							_takeoff_dynamic_point_triplet.enable = 0;
+							_takeoff_dynamic_point_triplet.lat = lat;
+							_takeoff_dynamic_point_triplet.lon = lon;
+							orb_publish(ORB_ID(takeoff_dynamic_point), _takeoff_dynamic_point_pub, &_takeoff_dynamic_point_triplet);
+//							mavlink_log_info(&_mavlink_log_pub, "takeoff_dynamic_point is changing lat and lon");
+						}
+					}	else if(_takeoff_dynamic_point_triplet.enable) {
+						timestamp_break =1;
+						_pos_sp_triplet_updated = true;
+						_pos_sp_triplet.current.lat = lat;
+						_pos_sp_triplet.current.lon = lon;
+						_pos_sp_triplet.current.valid = true;
+//						mavlink_log_info(&_mavlink_log_pub, " _takeoff_dynamic_point_triplet.enable = 1,takeoff_dynamic_point do not chang");
+					}
+				}
+			}	else	if((_pos_sp_triplet.current.type != position_setpoint_s::SETPOINT_TYPE_TAKEOFF)	&& (takeoff_d_p_end)) {
+					takeoff_d_p_end = 0;
+					_takeoff_dynamic_point_triplet.enable = 0;
+					_takeoff_dynamic_point_triplet.lat = 0;
+					_takeoff_dynamic_point_triplet.lon = 0;
+					orb_publish(ORB_ID(takeoff_dynamic_point), _takeoff_dynamic_point_pub, &_takeoff_dynamic_point_triplet);
+//					mavlink_log_info(&_mavlink_log_pub, " takeoff_d_p_end = 0, takeoff_d_p_end is changed");
+			}
+		}
+	
 		if (_pos_sp_triplet_updated) {
 			_pos_sp_triplet.timestamp = hrt_absolute_time();
 			publish_position_setpoint_triplet();

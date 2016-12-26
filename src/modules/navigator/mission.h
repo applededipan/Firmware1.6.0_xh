@@ -96,6 +96,7 @@ public:
 
 	unsigned find_offboard_land_start();
 
+	bool read_first_mission_item(mission_item_s *mission_item);
 private:
 	/**
 	 * Update onboard mission topic
@@ -111,6 +112,12 @@ private:
 	 * Move on to next mission item or switch to loiter
 	 */
 	void advance_mission();
+
+	/**
+	 * Check distance to first waypoint (with lat/lon)
+	 * @return true only if it's not too far from home (< MIS_DIST_1WP)
+	 */
+	bool check_dist_1wp();
 
 	/**
 	 * Set new mission items
@@ -255,7 +262,9 @@ private:
 	MissionFeasibilityChecker _missionFeasibilityChecker; /**< class that checks if a mission is feasible */
 
 	float _min_current_sp_distance_xy; /**< minimum distance which was achieved to the current waypoint  */
-
+	float _mission_item_previous_alt; /**< holds the altitude of the previous mission item,
+					    can be replaced by a full copy of the previous mission item if needed */
+	float _on_arrival_yaw; /**< holds the yaw value that should be applied when the current waypoint is reached */
 	float _distance_current_previous; /**< distance from previous to current sp in pos_sp_triplet,
 					    only use if current and previous are valid */
 

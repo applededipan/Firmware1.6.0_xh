@@ -48,7 +48,7 @@
 #if defined(MEMORY_CONSTRAINED_SYSTEM)
 #  define NUM_MISSIONS_SUPPORTED 50
 #else
-#  define NUM_MISSIONS_SUPPORTED 256
+#  define NUM_MISSIONS_SUPPORTED 2000
 #endif
 
 #define NAV_EPSILON_POSITION	0.001f	/**< Anything smaller than this is considered zero */

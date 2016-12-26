@@ -1,3 +1,4 @@
+#ifdef __PX4_NUTTX
 #include <px4.h>
 #include <sys/ioctl.h>
 #include <lib/mathlib/mathlib.h>
@@ -45,7 +46,7 @@ CameraInterfacePWM::CameraInterfacePWM():
 		i++;
 	}
 
-	setup();
+	setup(1234,1234);
 }
 
 CameraInterfacePWM::~CameraInterfacePWM()
@@ -55,8 +56,10 @@ CameraInterfacePWM::~CameraInterfacePWM()
 	// up_pwm_servo_deinit();
 }
 
-void CameraInterfacePWM::setup()
+void CameraInterfacePWM::setup(int pins, int polarity)
 {
+	pins = pins;
+	polarity = polarity;
 	for (unsigned i = 0; i < sizeof(_pins) / sizeof(_pins[0]); i = i + 2) {
 		if (_pins[i] >= 0 && _pins[i + 1] >= 0) {
 			uint8_t pin_bitmask = (1 << _pins[i + 1]) | (1 << _pins[i]);
@@ -147,3 +150,4 @@ void CameraInterfacePWM::info()
 {
 	warnx("PWM - interface, pin config: %d,%d,%d", _pins[0] + 1, _pins[1] + 1, _pins[2] + 1);
 }
+#endif

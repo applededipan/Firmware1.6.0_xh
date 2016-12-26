@@ -310,6 +310,9 @@ Mavlink::Mavlink() :
 	}
 
 	_rstatus.type = telemetry_status_s::TELEMETRY_STATUS_RADIO_TYPE_GENERIC;
+	if(takeoff_dynamic_point_sub==0){
+		takeoff_dynamic_point_sub = orb_subscribe(ORB_ID(takeoff_dynamic_point));
+	}
 }
 
 Mavlink::~Mavlink()
@@ -1990,6 +1993,7 @@ Mavlink::task_main(int argc, char *argv[])
 		configure_stream("ATTITUDE_TARGET", 2.0f);
 		configure_stream("HOME_POSITION", 0.5f);
 		configure_stream("NAMED_VALUE_FLOAT", 1.0f);
+		configure_stream("CAMERA_FEEDBACK", 10.0f);         //added 2016/8/24
 		configure_stream("VFR_HUD", 4.0f);
 		configure_stream("WIND_COV", 1.0f);
 		break;
@@ -2024,7 +2028,9 @@ Mavlink::task_main(int argc, char *argv[])
 		configure_stream("CAMERA_CAPTURE", 2.0f);
 		//camera trigger is rate limited at the source, do not limit here
 		configure_stream("CAMERA_TRIGGER", 500.0f);
+		//configure_stream("CAMERA_FEEDBACK", 500.0f);         //added 2016/8/24
 		configure_stream("ACTUATOR_CONTROL_TARGET0", 10.0f);
+		configure_stream("ACTUATOR_CONTROL_TARGET2", 10.0f); //added 2016/8/15
 		break;
 
 	case MAVLINK_MODE_OSD:
@@ -2074,9 +2080,11 @@ Mavlink::task_main(int argc, char *argv[])
 		configure_stream("NAMED_VALUE_FLOAT", 50.0f);
 		configure_stream("VFR_HUD", 20.0f);
 		configure_stream("WIND_COV", 10.0f);
-		configure_stream("CAMERA_TRIGGER", 500.0f);
+		configure_stream("CAMERA_TRIGGER", 100.0f);
+		//configure_stream("CAMERA_FEEDBACK", 500.0f);         //added 2016/8/24
 		configure_stream("MISSION_ITEM", 50.0f);
 		configure_stream("ACTUATOR_CONTROL_TARGET0", 30.0f);
+		configure_stream("ACTUATOR_CONTROL_TARGET2", 30.0f); //added 2016/8/15
 		configure_stream("MANUAL_CONTROL", 5.0f);
 
 	default:
@@ -2125,7 +2133,27 @@ Mavlink::task_main(int argc, char *argv[])
 			/* parameters updated */
 			mavlink_update_system();
 		}
+		
+		bool updated = false;
+		orb_check(takeoff_dynamic_point_sub, &updated);
+		if(updated)	{
+			takeoff_dynamic_point_s takeoff_point;
+			orb_copy(ORB_ID(takeoff_dynamic_point), takeoff_dynamic_point_sub, &takeoff_point);
 
+			if(!takeoff_point.enable)	{
+				mavlink_mission_item_t wp_buff;
+				wp_buff.param1 = 100004;
+				wp_buff.command = 500;
+				wp_buff.seq   =  0;
+				int x_x,y_y;
+				x_x = takeoff_point.lat*10000000;
+				y_y = takeoff_point.lon*10000000;
+				memcpy(&wp_buff.x , &x_x,4);
+				memcpy(&wp_buff.y , &y_y,4);
+		
+				_mission_manager->send_handle_mission_item_ack(wp_buff);
+			}
+		}
 		/* radio config check */
 		if (_uart_fd >= 0 && _radio_id != 0 && _rstatus.type == telemetry_status_s::TELEMETRY_STATUS_RADIO_TYPE_3DR_RADIO) {
 			/* request to configure radio and radio is present */

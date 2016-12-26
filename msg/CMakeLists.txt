@@ -41,6 +41,7 @@ set(msg_file_names
 	att_pos_mocap.msg
 	battery_status.msg
 	camera_trigger.msg
+	camera_feedback.msg
 	commander_state.msg
 	control_state.msg
 	cpuload.msg
@@ -80,6 +81,7 @@ set(msg_file_names
 	parameter_update.msg
 	position_setpoint.msg
 	position_setpoint_triplet.msg
+	position_setpoint_current_airspeed.msg 
 	pwm_input.msg
 	qshell_req.msg
 	rc_channels.msg
@@ -95,6 +97,7 @@ set(msg_file_names
 	servorail_status.msg
 	subsystem_info.msg
 	system_power.msg
+	takeoff_dynamic_point.msg
 	tecs_status.msg
 	telemetry_status.msg
 	test_motor.msg

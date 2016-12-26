@@ -7,6 +7,7 @@ set(config_module_list
 	drivers/device
 	drivers/gps
 	drivers/pwm_out_sim
+	drivers/camera_trigger
 	drivers/vmount
 
 	platforms/common
@@ -33,17 +34,21 @@ set(config_module_list
 	systemcmds/top
 	systemcmds/motor_ramp
 
+	#modules/attitude_estimator_ekf
 	modules/attitude_estimator_q
 	modules/commander
 	modules/dataman
 	modules/ekf2
+	#modules/ekf_att_pos_estimator
 	modules/fw_att_control
 	modules/fw_pos_control_l1
 	modules/land_detector
 	modules/logger
 	modules/mavlink
 	modules/mc_att_control
+	#modules/mc_att_control_multiplatform
 	modules/mc_pos_control
+	#modules/mc_pos_control_multiplatform
 	modules/navigator
 	modules/param
 	modules/position_estimator_inav

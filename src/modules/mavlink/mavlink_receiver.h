@@ -78,9 +78,8 @@
 #include <uORB/topics/transponder_report.h>
 #include <uORB/topics/gps_inject_data.h>
 #include <uORB/topics/control_state.h>
-#include <uORB/topics/collision_report.h>
-
-
+#include <uORB/topics/position_setpoint_current_airspeed.h>
+#include <uORB/topics/camera_trigger.h> //! added 
 #include "mavlink_ftp.h"
 
 #define PX4_EPOCH_SECS 1234567890ULL
@@ -144,12 +143,11 @@ private:
 	void handle_message_distance_sensor(mavlink_message_t *msg);
 	void handle_message_follow_target(mavlink_message_t *msg);
 	void handle_message_adsb_vehicle(mavlink_message_t *msg);
-	void handle_message_collision(mavlink_message_t *msg);
 	void handle_message_gps_rtcm_data(mavlink_message_t *msg);
 	void handle_message_battery_status(mavlink_message_t *msg);
 	void handle_message_serial_control(mavlink_message_t *msg);
 	void handle_message_logging_ack(mavlink_message_t *msg);
-
+    void handle_message_camera_trigger(mavlink_message_t *msg); //! apple
 	void *receive_thread(void *arg);
 
 	/**
@@ -225,8 +223,8 @@ private:
 	orb_advert_t _time_offset_pub;
 	orb_advert_t _follow_target_pub;
 	orb_advert_t _transponder_report_pub;
-	orb_advert_t _collision_report_pub;
 	orb_advert_t _control_state_pub;
+	orb_advert_t _camera_trigger_pub; // apple
 	static const int _gps_inject_data_queue_size = 6;
 	orb_advert_t _gps_inject_data_pub;
 	orb_advert_t _command_ack_pub;
@@ -246,6 +244,9 @@ private:
 	int64_t _time_offset;
 	int	_orb_class_instance;
 
+	orb_advert_t _pos_sp_current_airspeed_pub;
+	position_setpoint_current_airspeed_s _pos_sp_current_airspeed;
+	
 	static constexpr unsigned MOM_SWITCH_COUNT = 8;
 
 	uint8_t _mom_switch_pos[MOM_SWITCH_COUNT];

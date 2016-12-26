@@ -128,8 +128,8 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_time_offset_pub(nullptr),
 	_follow_target_pub(nullptr),
 	_transponder_report_pub(nullptr),
-	_collision_report_pub(nullptr),
 	_control_state_pub(nullptr),
+	_camera_trigger_pub(nullptr), //! apple
 	_gps_inject_data_pub(nullptr),
 	_command_ack_pub(nullptr),
 	_control_mode_sub(orb_subscribe(ORB_ID(vehicle_control_mode))),
@@ -150,6 +150,8 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_mom_switch_pos{},
 	_mom_switch_state(0)
 {
+	_pos_sp_current_airspeed_pub = orb_advertise(ORB_ID(position_setpoint_current_airspeed),
+				&_pos_sp_current_airspeed);
 }
 
 MavlinkReceiver::~MavlinkReceiver()
@@ -259,10 +261,6 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		handle_message_adsb_vehicle(msg);
 		break;
 
-	case MAVLINK_MSG_ID_COLLISION:
-		handle_message_collision(msg);
-		break;
-
 	case MAVLINK_MSG_ID_GPS_RTCM_DATA:
 		handle_message_gps_rtcm_data(msg);
 		break;
@@ -279,6 +277,10 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		handle_message_logging_ack(msg);
 		break;
 
+	case MAVLINK_MSG_ID_CAMERA_TRIGGER:          //! apple 
+        handle_message_camera_trigger(msg);
+        break;
+		
 	default:
 		break;
 	}
@@ -353,6 +355,24 @@ MavlinkReceiver::evaluate_target_ok(int command, int target_system, int target_c
 }
 
 void
+MavlinkReceiver::handle_message_camera_trigger(mavlink_message_t *msg)
+{
+	/* get camera zoom_in_out cmd */
+	mavlink_camera_trigger_t camera_trigger;
+	mavlink_msg_camera_trigger_decode(msg, &camera_trigger);
+
+	//if(camera_trigger->sysid != ) return; // not verify the source of the message, need to supplement later
+    uint32_t camera_trigger_mode = camera_trigger.seq;
+
+	if (_camera_trigger_pub == nullptr) {
+	_camera_trigger_pub = orb_advertise(ORB_ID(camera_trigger), &camera_trigger_mode);
+
+	} else {
+		orb_publish(ORB_ID(camera_trigger), _camera_trigger_pub, &camera_trigger_mode);
+	}
+}
+
+void
 MavlinkReceiver::handle_message_command_long(mavlink_message_t *msg)
 {
 	/* command */
@@ -400,6 +420,14 @@ MavlinkReceiver::handle_message_command_long(mavlink_message_t *msg)
 
 		} else if (cmd_mavlink.command == MAV_CMD_GET_MESSAGE_INTERVAL) {
 			get_message_interval((int)cmd_mavlink.param1);
+
+		} else if (cmd_mavlink.command == MAV_CMD_DO_CHANGE_SPEED) {
+			/*ye-20160924*/
+			_pos_sp_current_airspeed.airspeed = cmd_mavlink.param2;
+			orb_publish(ORB_ID(position_setpoint_current_airspeed), _pos_sp_current_airspeed_pub,
+					&_pos_sp_current_airspeed);
+			if (fabs(_pos_sp_current_airspeed.airspeed) > 1e-7) 
+				_mavlink->set_airspeed(_pos_sp_current_airspeed.airspeed);
 
 		} else {
 
@@ -1929,30 +1957,6 @@ void MavlinkReceiver::handle_message_adsb_vehicle(mavlink_message_t *msg)
 
 	} else {
 		orb_publish(ORB_ID(transponder_report), _transponder_report_pub, &t);
-	}
-}
-
-void MavlinkReceiver::handle_message_collision(mavlink_message_t *msg)
-{
-	mavlink_collision_t collision;
-	collision_report_s t = { };
-
-	mavlink_msg_collision_decode(msg, &collision);
-
-	t.timestamp = hrt_absolute_time();
-	t.src = collision.src;
-	t.id = collision.id;
-	t.action = collision.action;
-	t.threat_level = collision.threat_level;
-	t.time_to_minimum_delta = collision.time_to_minimum_delta;
-	t.altitude_minimum_delta = collision.altitude_minimum_delta;
-	t.horizontal_minimum_delta = collision.horizontal_minimum_delta;
-
-	if (_collision_report_pub == nullptr) {
-		_collision_report_pub = orb_advertise(ORB_ID(collision_report), &t);
-
-	} else {
-		orb_publish(ORB_ID(collision_report), _collision_report_pub, &t);
 	}
 }
 

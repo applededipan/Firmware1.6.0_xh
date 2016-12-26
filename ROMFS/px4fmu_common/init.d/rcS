@@ -387,17 +387,17 @@ then
 
 	# Sensors on the PWM interface bank
 	# clear pins 5 and 6
-	if param compare SENS_EN_LL40LS 1
-	then
-		set FMU_MODE pwm4
-		set AUX_MODE pwm4
-	fi
-	if param greater TRIG_MODE 0
-	then
-		set FMU_MODE pwm4
-		set AUX_MODE pwm4
-		camera_trigger start
-	fi
+	#if param compare SENS_EN_LL40LS 1
+	#then
+	#	set FMU_MODE pwm4
+	#	set AUX_MODE pwm4
+	#fi
+	#if param greater TRIG_MODE 0
+	#then
+	#	set FMU_MODE pwm4
+	#	set AUX_MODE pwm4
+	#	camera_trigger start
+	#fi
 
 	# If OUTPUT_MODE == none then something is wrong with setup and we shouldn't try to enable output
 	if [ $OUTPUT_MODE != none ]
@@ -530,7 +530,7 @@ then
 			# Avoid using ttyS1 for MAVLink on FMUv4
 			if ver hwcmp PX4FMU_V4
 			then
-				set MAVLINK_F "-r 1200 -d /dev/ttyS1"
+				set MAVLINK_F "-r 2400 -b 115200 -d /dev/ttyS1"
 				# Start MAVLink on Wifi (ESP8266 port)
 				mavlink start -r 20000 -m config -b 921600 -d /dev/ttyS0
 			fi
@@ -558,8 +558,13 @@ then
 	#
 	# MAVLink onboard / TELEM2
 	#
-	if ver hwcmp PX4FMU_V1
+	if  ver hwcmp PX4FMU_V4 
 	then
+		#start camera trigger 
+		#if param greater TRIG_MODE 0
+		#then
+		camera_trigger start
+		#fi
 	else
 		# XXX We need a better way for runtime eval of shell variables,
 		# but this works for now
@@ -667,7 +672,7 @@ then
 
 	if ver hwcmp PX4FMU_V4
 	then
-		frsky_telemetry start -d /dev/ttyS6
+		#frsky_telemetry start -d /dev/ttyS6
 	fi
 
 	if ver hwcmp MINDPX_V2
@@ -923,8 +928,8 @@ then
 		if ver hwcmp PX4FMU_V4
 		then
 			# On Pixracer use Telem 2 port (TL2).
-			snapdragon_rc_pwm start -d /dev/ttyS2
-			fmu mode_pwm4
+			#snapdragon_rc_pwm start -d /dev/ttyS2
+			fmu mode_pwm
 		fi
 
 		pwm failsafe -c 1234 -p 900
@@ -992,3 +997,4 @@ then
 	exit
 fi
 unset EXIT_ON_END
+

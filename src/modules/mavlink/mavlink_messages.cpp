@@ -43,7 +43,9 @@
 #include <errno.h>
 
 #include "mavlink_main.h"
+#include "v2.0/ardupilotmega/mavlink_msg_camera_feedback.h" //added by dzp 2016/8/24
 #include "mavlink_messages.h"
+#include <v2.0/checksum.h>
 
 #include <commander/px4_custom_mode.h>
 #include <drivers/drv_pwm_output.h>
@@ -53,7 +55,9 @@
 #include <px4_time.h>
 #include <systemlib/err.h>
 #include <systemlib/mavlink_log.h>
-
+#include <termios.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/actuator_controls.h>
 #include <uORB/topics/actuator_outputs.h>
@@ -61,6 +65,7 @@
 #include <uORB/topics/att_pos_mocap.h>
 #include <uORB/topics/battery_status.h>
 #include <uORB/topics/camera_trigger.h>
+#include <uORB/topics/camera_feedback.h>  //added by dzp 2016/8/24
 #include <uORB/topics/cpuload.h>
 #include <uORB/topics/debug_key_value.h>
 #include <uORB/topics/differential_pressure.h>
@@ -1425,6 +1430,143 @@ protected:
 	}
 };
 
+/****************added by dzp 2016/8/24********************/
+class MavlinkStreamCameraFeedback : public MavlinkStream
+{
+public:
+	const char *get_name() const
+	{
+		return MavlinkStreamCameraFeedback::get_name_static();
+	}
+
+	static const char *get_name_static()
+	{
+		return "CAMERA_FEEDBACK";
+	}
+
+	static uint16_t get_id_static()
+	{
+		return MAVLINK_MSG_ID_CAMERA_FEEDBACK;
+	}
+
+  uint16_t get_id()
+  {
+    return get_id_static();
+  }
+
+	static MavlinkStream *new_instance(Mavlink *mavlink)
+	{
+		return new MavlinkStreamCameraFeedback(mavlink);
+	}
+
+	unsigned get_size()
+	{
+		return (_feedback_time > 0) ? MAVLINK_MSG_ID_CAMERA_FEEDBACK_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES : 0;
+	}
+
+   void file_handle(mavlink_camera_feedback_t msg)
+	{
+#ifndef __PX4_POSIX
+		if(!_mavlink->get_mode()){
+
+					/* string to hold the path to the log */
+					char log_root[30] = "/fs/microsd";
+					char log_file_path[64] = "";
+					int fd = -1;
+					char buffer[512];
+					static int seq = 0;
+				    char ms[5];
+                    uint64_t utc_time_msec;
+                    time_t utc_time_sec,msec;
+
+					struct tm tt;
+					utc_time_sec = msg.time_usec / 1e6;
+					gmtime_r(&utc_time_sec, &tt);
+
+					char tstamp[22];
+					strftime(tstamp, sizeof(tstamp) - 1, "%Y/%m/%d/%H:%M:%S", &tt);
+
+					utc_time_msec = msg.time_usec / 1e3;
+					msec = utc_time_msec - utc_time_sec*1e3;
+
+					sprintf(&ms[0],".%d",msec);
+					strcat(tstamp,ms);
+
+					char dstamp[22];
+					strftime(dstamp, sizeof(dstamp) - 1, "%Y-%m-%d",&tt);
+					sprintf(log_file_path,"%s/camera_%s.txt",log_root,dstamp);
+
+						struct stat buf;
+						if(::stat(log_file_path, &buf) == -1){
+							// log file not exit
+							fd = open(log_file_path, O_CREAT | O_RDWR | O_APPEND);
+							if(fd>0){
+								memset(buffer,0,sizeof(buffer));
+																//编号   时间  纬度  经度  绝高 相高 速度横滚俯仰指向 //飞行姿态  触发负载
+								sprintf(buffer, "%-4s\t\t%-23s%-10s\t%-12s%-8s\t%-8s\t   %-8s%-8s%-8s%-8s \r\n ",
+										"编号", "时间","纬度", "经度", "绝对高度", "相对高度", "速度", "横滚", "俯仰", "偏航");
+								write(fd,&buffer[0],strlen(buffer) + 1);
+								//fsync(fd);
+							}
+						}else{
+							// log file ex
+							fd = open(log_file_path, O_RDWR | O_APPEND);
+						}
+						if(fd>0){
+
+							memset(buffer,0,sizeof(buffer));
+							sprintf(&buffer[0],"\r\n %-4d  %-25s  %-15.7f  %-15.7f  %-10.2f  %-10.2f  %-5.1f  %-5.1f  %-5.1f  %-5.1f",
+									seq,tstamp,(double)(msg.lat/10000000.0),(double)(msg.lng/10000000.0),(double)msg.alt_msl,(double)msg.alt_rel,(double)msg.foc_len,(double)msg.roll,(double)msg.pitch,(double)msg.yaw);
+							write(fd,&buffer[0],strlen(buffer) + 1);
+								seq++;
+					   }
+					    close(fd);
+					  }
+					/*****************************************/
+#endif
+	}
+
+private:
+	MavlinkOrbSubscription *_feedback_sub;
+	uint64_t _feedback_time;
+
+	/* do not allow top copying this class */
+	MavlinkStreamCameraFeedback(MavlinkStreamCameraFeedback &);
+	MavlinkStreamCameraFeedback& operator = (const MavlinkStreamCameraFeedback &);
+
+protected:
+	explicit MavlinkStreamCameraFeedback(Mavlink *mavlink) : MavlinkStream(mavlink),
+		_feedback_sub(_mavlink->add_orb_subscription(ORB_ID(camera_feedback))),
+		_feedback_time(0)
+	{}
+
+	void send(const hrt_abstime t)
+	{
+		struct camera_feedback_s feedback;
+
+		if (_feedback_sub->update(&_feedback_time, &feedback)) {
+			mavlink_camera_feedback_t msg;
+			memset(&msg,0,sizeof(msg));
+
+			msg.time_usec = feedback.timestamp;
+			msg.lat = feedback.lat;
+			msg.lng = feedback.lng;
+			msg.alt_msl = feedback.alt_msl;
+			msg.alt_rel = feedback.alt_rel;
+			msg.roll = feedback.roll;
+			msg.pitch = feedback.pitch;
+			msg.yaw = feedback.yaw;
+			msg.foc_len = feedback.foc_len;
+
+			/* ensure that only active trigger events are sent */
+			if (feedback.timestamp > 0) {
+				mavlink_msg_camera_feedback_send_struct(_mavlink->get_channel(), &msg);
+				file_handle(msg);
+			}
+		}
+	}
+};
+/****************************************end************************************************/
 class MavlinkStreamGlobalPositionInt : public MavlinkStream
 {
 public:
@@ -2116,6 +2258,7 @@ protected:
 		struct actuator_controls_s att_ctrl;
 
 		if (_att_ctrl_sub->update(&_att_ctrl_time, &att_ctrl)) {
+
 			mavlink_actuator_control_target_t msg;
 
 			msg.time_usec = att_ctrl.timestamp;
@@ -2125,7 +2268,48 @@ protected:
 				msg.controls[i] = att_ctrl.control[i];
 			}
 
-			mavlink_msg_actuator_control_target_send_struct(_mavlink->get_channel(), &msg);
+			if(N==2){
+#ifndef __PX4_POSIX
+				uint16_t checksum=0xffff;
+				uint8_t len = sizeof(msg);
+				uint8_t buf[6+len+2];
+				uint8_t ck[2];
+
+				buf[0] = 0xFE;                      //STX
+				buf[1] = len;                       //LEN
+				buf[2] = 0;                         //SEQ
+				buf[3] = 0x01;                         //SYS
+				buf[4] = 0x01;                        //COMP
+				buf[5] = 140;                       //MSG
+//				memset(&msg,0,len);
+				memcpy(&buf[6],&msg,len);           //PAYLOAD
+
+				checksum = crc_calculate((const uint8_t*)&buf[1], len+5);
+				crc_accumulate(181, &checksum);
+
+				ck[0] = (uint8_t)(checksum & 0xFF);
+				ck[1] = (uint8_t)(checksum >> 8);
+				buf[len+6] = ck[0];                 //CKA
+				buf[len+7] = ck[1];                 //CKB
+#define CAMERA_ZOOM_EN /* apple: enable camera zoom_in_out via /dev/ttyS6  USART8 */
+#ifndef CAMERA_ZOOM_EN
+				const char *device_name = "/dev/ttyS6";
+				static int uart_fd = -1;
+
+				if(uart_fd < 0)
+						uart_fd = open(device_name, O_RDWR| O_NOCTTY | O_NONBLOCK);
+				if(uart_fd > 0)
+					  write(uart_fd, &buf,sizeof(buf));
+#endif
+#endif
+//				if(uart_fd > 0)
+//           write(uart_fd, &msg.time_usec,sizeof(msg.time_usec));
+//		   	warnx("len :%d",sizeof(buf));
+
+			}
+			else{
+			    mavlink_msg_actuator_control_target_send_struct(_mavlink->get_channel(), &msg);
+			}
 		}
 	}
 };
@@ -3631,6 +3815,7 @@ const StreamListItem *streams_list[] = {
 	new StreamListItem(&MavlinkStreamNavControllerOutput::new_instance, &MavlinkStreamNavControllerOutput::get_name_static, &MavlinkStreamNavControllerOutput::get_id_static),
 	new StreamListItem(&MavlinkStreamCameraCapture::new_instance, &MavlinkStreamCameraCapture::get_name_static, &MavlinkStreamCameraCapture::get_id_static),
 	new StreamListItem(&MavlinkStreamCameraTrigger::new_instance, &MavlinkStreamCameraTrigger::get_name_static, &MavlinkStreamCameraTrigger::get_id_static),
+	new StreamListItem(&MavlinkStreamCameraFeedback::new_instance, &MavlinkStreamCameraFeedback::get_name_static, &MavlinkStreamCameraFeedback::get_id_static), //added by dzp 2016/8/24
 	new StreamListItem(&MavlinkStreamDistanceSensor::new_instance, &MavlinkStreamDistanceSensor::get_name_static, &MavlinkStreamDistanceSensor::get_id_static),
 	new StreamListItem(&MavlinkStreamExtendedSysState::new_instance, &MavlinkStreamExtendedSysState::get_name_static, &MavlinkStreamExtendedSysState::get_id_static),
 	new StreamListItem(&MavlinkStreamAltitude::new_instance, &MavlinkStreamAltitude::get_name_static, &MavlinkStreamAltitude::get_id_static),
