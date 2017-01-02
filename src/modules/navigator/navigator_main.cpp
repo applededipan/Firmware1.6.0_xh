@@ -890,7 +890,9 @@ Navigator::get_acceptance_radius(float mission_item_radius)
 	// this might need locking against a commanded transition
 	// so that a stale _vstatus doesn't trigger an accepted mission item.
 	if (!_vstatus.is_rotary_wing && !_vstatus.in_transition_mode) {
-		if ((hrt_elapsed_time(&_fw_pos_ctrl_status.timestamp) < 5000000) && (_fw_pos_ctrl_status.turn_distance > radius)) {
+		if(radius >= 5.0f){
+			return radius;
+		}else if ((hrt_elapsed_time(&_fw_pos_ctrl_status.timestamp) < 5000000) && (_fw_pos_ctrl_status.turn_distance > radius)) {
 			radius = _fw_pos_ctrl_status.turn_distance;
 		}
 	}
