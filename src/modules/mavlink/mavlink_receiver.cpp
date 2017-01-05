@@ -230,6 +230,10 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		handle_message_rc_channels_override(msg);
 		break;
 
+	case MAVLINK_MSG_ID_RC_CHANNELS://sunjun
+		handle_message_rc_channels(msg);
+		break;
+
 	case MAVLINK_MSG_ID_HEARTBEAT:
 		handle_message_heartbeat(msg);
 		break;
@@ -1402,6 +1406,85 @@ MavlinkReceiver::handle_message_rc_channels_override(mavlink_message_t *msg)
 	rc.values[6] = man.chan7_raw;
 
 	rc.values[7] = man.chan8_raw;
+
+	if (_rc_pub == nullptr) {
+		_rc_pub = orb_advertise(ORB_ID(input_rc), &rc);
+
+	} else {
+		orb_publish(ORB_ID(input_rc), _rc_pub, &rc);
+	}
+}
+
+void
+MavlinkReceiver::handle_message_rc_channels(mavlink_message_t *msg)//sujun
+{
+	mavlink_rc_channels_t man;
+	mavlink_msg_rc_channels_decode(msg, &man);
+
+	// added by apple for expand channels
+	// Check target use time_boot_ms of this message as the targetID
+	if (man.time_boot_ms != _mavlink->get_system_id()) {
+		return;
+	}
+
+	struct rc_input_values rc = {};
+
+	rc.timestamp = hrt_absolute_time();
+
+	rc.timestamp_last_signal = rc.timestamp;
+
+	rc.channel_count = 18;
+
+	rc.rc_failsafe = false;
+
+	rc.rc_lost = false;
+
+	rc.rc_lost_frame_count = 0;
+
+	rc.rc_total_frame_count = 1;
+
+	rc.rc_ppm_frame_length = 0;
+
+	rc.input_source = input_rc_s::RC_INPUT_SOURCE_MAVLINK;
+
+	rc.rssi = RC_INPUT_RSSI_MAX;
+
+	/* channels */
+	rc.values[0] = man.chan1_raw;
+
+	rc.values[1] = man.chan2_raw;
+
+	rc.values[2] = man.chan3_raw;
+
+	rc.values[3] = man.chan4_raw;
+
+	rc.values[4] = man.chan5_raw;
+
+	rc.values[5] = man.chan6_raw;
+
+	rc.values[6] = man.chan7_raw;
+
+	rc.values[7] = man.chan8_raw;
+
+	rc.values[8] = man.chan9_raw;
+
+	rc.values[9] = man.chan10_raw;
+
+	rc.values[10] = man.chan11_raw;
+
+	rc.values[11] = man.chan12_raw;
+
+	rc.values[12] = man.chan13_raw;
+
+	rc.values[13] = man.chan14_raw;
+
+	rc.values[14] = man.chan15_raw;
+
+	rc.values[15] = man.chan16_raw;
+
+	rc.values[16] = man.chan17_raw;
+
+	rc.values[17] = man.chan18_raw;
 
 	if (_rc_pub == nullptr) {
 		_rc_pub = orb_advertise(ORB_ID(input_rc), &rc);
