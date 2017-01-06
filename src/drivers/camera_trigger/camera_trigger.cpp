@@ -208,6 +208,7 @@ private:
 	float   _pitch;
 	float   _yaw;
   float   _airspeed;
+  float   _groundspeed;
   uint64_t _gps_time_usec;
 
 	orb_advert_t		_trigger_pub;
@@ -743,7 +744,8 @@ CameraTrigger::cycle_trampoline(void *arg)
 		}
 		orb_copy(ORB_ID(vehicle_global_position), trig->_vgposition_sub, &gpos);
 		trig->_gps_time_usec = gpos.timestamp;
-	
+		trig->_groundspeed=sqrtf(gpos.vel_n * gpos.vel_n + gpos.vel_e * gpos.vel_e);
+
 		/* set timestamp the instant before the trigger goes off */
 		trig->_now_lat = gpos.lat;
 		trig->_now_lon = gpos.lon;
@@ -974,7 +976,8 @@ CameraTrigger::engage(void *arg)
 	report2.pitch = trig->_pitch;
 	report2.yaw = trig->_yaw;
 	report2.foc_len = trig->_airspeed;
-	
+	report2.ground_speed = trig->_groundspeed;
+
 	if(!trig->_feedback_pub)
 		trig->_feedback_pub = orb_advertise(ORB_ID(camera_feedback), &report2);
 	else{ orb_publish(ORB_ID(camera_feedback), trig->_feedback_pub, &report2);	}

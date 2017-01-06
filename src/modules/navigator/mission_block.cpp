@@ -572,7 +572,13 @@ MissionBlock::mission_item_to_position_setpoint(const struct mission_item_s *ite
 
 	sp->valid = true;
 }
-
+void
+MissionBlock::set_previous_pos_setpoint(float lat,float lon)
+{
+	struct position_setpoint_triplet_s *pos_sp_triplet = _navigator->get_position_setpoint_triplet();
+	pos_sp_triplet->previous.lat = lat;
+	pos_sp_triplet->previous.lon = lon;
+}
 void
 MissionBlock::set_previous_pos_setpoint()
 {

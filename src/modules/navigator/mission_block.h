@@ -98,6 +98,7 @@ protected:
 	 * Set previous position setpoint to current setpoint
 	 */
 	void set_previous_pos_setpoint();
+	void set_previous_pos_setpoint(float lat,float lon);
 
 	/**
 	 * Set a loiter mission item, if possible reuse the position setpoint, otherwise take the current position
