@@ -119,3 +119,14 @@ PARAM_DEFINE_INT32(VT_F_TRANS_EN, 0);
  * @group VTOL Attitude Control
  */
 PARAM_DEFINE_INT32(VT_B_TRANS_EN, 0);
+
+/**
+ * Force Fixed-wing mode to realize motor differential steering
+ *
+ * Force Fixed-wing mode to realize motor differential steering. 0 means disable.
+ *
+ * @min 0 
+ * @max 1
+ * @group VTOL Attitude Control
+ */
+PARAM_DEFINE_INT32(VT_FW_DIFF_EN, 0);
