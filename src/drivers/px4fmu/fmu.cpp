@@ -204,6 +204,7 @@ private:
 	bool		_throttle_armed;
 	bool		_pwm_on;
 	uint32_t	_pwm_mask;
+	uint32_t  _mot_slew_en;
 	bool		_pwm_initialized;
 
 	MixerGroup	*_mixers;
@@ -227,10 +228,14 @@ private:
 	unsigned	_num_disarmed_set;
 	bool		_safety_off;
 	bool		_safety_disabled;
+	bool    _slew_filter_s;
 	orb_advert_t		_to_safety;
 
 	float _mot_t_max;	// maximum rise time for motor (slew rate limiting)
-
+	float _mot_band_limit;  //motor pwm band limit params
+	float _mot_rate_limit;  //motor pwm rate limit params
+	float	_filter_pwm[_max_actuators];
+	
 	static bool	arm_nothrottle()
 	{
 		return ((_armed.prearmed && !_armed.armed) || _armed.in_esc_calibration_mode);
@@ -325,6 +330,7 @@ PX4FMU::PX4FMU() :
 	_throttle_armed(false),
 	_pwm_on(false),
 	_pwm_mask(0),
+	_mot_slew_en(0),
 	_pwm_initialized(false),
 	_mixers(nullptr),
 	_groups_required(0),
@@ -338,12 +344,16 @@ PX4FMU::PX4FMU() :
 	_num_disarmed_set(0),
 	_safety_off(false),
 	_safety_disabled(false),
+	_slew_filter_s(false),
 	_to_safety(nullptr),
-	_mot_t_max(0.0f)
+	_mot_t_max(0.0f),
+	_mot_band_limit(0.0f),
+	_mot_rate_limit(0.0f)
 {
 	for (unsigned i = 0; i < _max_actuators; i++) {
 		_min_pwm[i] = PWM_DEFAULT_MIN;
 		_max_pwm[i] = PWM_DEFAULT_MAX;
+		_filter_pwm[i] = 0.0f;
 	}
 
 	_control_topics[0] = ORB_ID(actuator_controls_0);
@@ -968,7 +978,13 @@ PX4FMU::cycle()
 #endif
 #endif
 		param_find("MOT_SLEW_MAX");
-
+		param_get(param_find("MOT_SLEW_EN"), &_mot_slew_en);
+		param_get(param_find("MOT_RATE_LIMIT"), &_mot_rate_limit);
+		param_get(param_find("MOT_BAND_LIMIT"), &_mot_band_limit);
+		if (_mot_rate_limit < 0.001f)
+			_mot_rate_limit = 0.001f;
+		if (_mot_band_limit < 0.001f)
+			_mot_band_limit = 0.001f;
 		_initialized = true;
 	}
 
@@ -1143,6 +1159,45 @@ PX4FMU::cycle()
 					outputs[i] = NAN_VALUE;
 				}
 			}
+			
+			/*   
+			 * motor output limit,add by yhb 2017 1 11
+			 * b = band limit;
+			 * dt = step delta time,0.005 if running at 200Hz.
+			 * r = rate limit,default is set to lage number,e.g 10%
+			 * note: s must be much smallewr than 1.0.
+			 */
+			if (_mot_slew_en && _throttle_armed) {
+		  	if (!_slew_filter_s) {
+		  		for (size_t i = 0; i < num_outputs; i++) {
+						_filter_pwm[i] = outputs[i];
+					}
+					_slew_filter_s = true;
+		  	} else {
+		  		float limit = 0;
+		  		float limit_min = 0;
+		  		float limit_max = 0;
+		  		float s = _mot_rate_limit * dt / _mot_band_limit; //s = r*dt/b
+		  	
+		  		for (size_t i = 0; i < num_outputs; i++) {
+		  			limit_min = _filter_pwm[i] - _mot_band_limit;
+		  		  limit_max = _filter_pwm[i] + _mot_band_limit;
+		  		  
+		  		  if (limit_min < -1)
+		  		  	  limit_min = -1;
+		  		  if (limit_max > 1)
+		  		  		limit_max = 1;
+		  		  // Xt = limit(xraw,Yt_1 - b,Yt_1 + b)
+						if (outputs[i] < limit_min || outputs[i] > limit_max) {
+							 limit = outputs[i] > limit_max ? limit_max: ( outputs[i] < limit_min ? limit_min:outputs[i]);
+						}	else { 	limit = outputs[i]; }
+						// Yt = (1-s)*Yt_1 + s * Xt
+						_filter_pwm[i] = (1 - s) * _filter_pwm[i] + s * limit;	
+						outputs[i] = limit;	
+					}
+		  	}
+		  } else { _slew_filter_s = false; }
+
 
 			uint16_t pwm_limited[_max_actuators];
 
@@ -1277,6 +1332,14 @@ PX4FMU::cycle()
 		if (param_handle != PARAM_INVALID) {
 			param_get(param_handle, &_mot_t_max);
 		}
+		
+		param_get(param_find("MOT_SLEW_EN"), &_mot_slew_en);
+		param_get(param_find("MOT_RATE_LIMIT"), &_mot_rate_limit);
+		param_get(param_find("MOT_BAND_LIMIT"), &_mot_band_limit);
+		if (_mot_rate_limit < 0.001f)
+			_mot_rate_limit = 0.001f;
+		if (_mot_band_limit < 0.001f)
+			_mot_band_limit = 0.001f;
 	}
 
 	/* update ADC sampling */

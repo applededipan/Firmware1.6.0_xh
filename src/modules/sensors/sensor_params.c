@@ -3326,3 +3326,32 @@ PARAM_DEFINE_INT32(PWM_AUX_DISARMED, 1000);
  * @group PWM Outputs
  */
 PARAM_DEFINE_FLOAT(MOT_SLEW_MAX, 0.0f);
+
+
+/**
+ * motor limit enable.
+ *
+ * @min 0
+ * @max 1
+ * @group PWM Outputs
+ */
+PARAM_DEFINE_INT32(MOT_SLEW_EN, 0);
+
+
+/**
+ * motor boand limit,5%,10%,etc.
+ *
+ * @min 0
+ * @max 1
+ * @group PWM Outputs
+ */
+PARAM_DEFINE_FLOAT(MOT_BAND_LIMIT, 0.1f);
+
+/**
+ * moter rate limit,5%,10%,etc.
+ *
+ * @min 0
+ * @max 1
+ * @group PWM Outputs
+ */
+PARAM_DEFINE_FLOAT(MOT_RATE_LIMIT, 0.1f);
