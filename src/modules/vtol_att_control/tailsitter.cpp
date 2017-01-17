@@ -78,6 +78,7 @@ Tailsitter::Tailsitter(VtolAttitudeControl *attc) :
     _params_handles_tailsitter.back_trans_pitch = param_find("VT_PITCH_B_TRANS");  // apple
 	_params_handles_tailsitter.vtol_ftrans_force_en = param_find("VT_F_TRANS_EN");
 	_params_handles_tailsitter.vtol_btrans_force_en = param_find("VT_B_TRANS_EN");
+	_params_handles_tailsitter.vtol_fw_diff_en = param_find("VT_FW_DIFF_EN");
 }
 
 Tailsitter::~Tailsitter()
@@ -137,6 +138,10 @@ Tailsitter::parameters_update()
 	param_get(_params_handles_tailsitter.elevons_mc_lock, &l);
 	_params_tailsitter.elevons_mc_lock = l;
 
+	/* vtol fw motor differential steering */
+	param_get(_params_handles_tailsitter.vtol_fw_diff_en, &l);
+	_params_tailsitter.vtol_fw_diff_en = l;
+	
 	/* avoid parameters which will lead to zero division in the transition code */
 	_params_tailsitter.front_trans_dur = math::max(_params_tailsitter.front_trans_dur, _min_front_trans_dur);
 
@@ -544,7 +549,12 @@ void Tailsitter::fill_actuator_outputs()
 	case FIXED_WING:
 		// in fixed wing mode we use engines only for providing thrust, no moments are generated
 		_actuators_out_0->timestamp = _actuators_fw_in->timestamp;
-		_actuators_out_0->control[actuator_controls_s::INDEX_ROLL] = 0;
+		if (_params_tailsitter.vtol_fw_diff_en) {
+			_actuators_out_0->control[actuator_controls_s::INDEX_ROLL] = 
+				_actuators_fw_in->control[actuator_controls_s::INDEX_YAW];
+		}	else {
+				_actuators_out_0->control[actuator_controls_s::INDEX_ROLL] = 0;
+		}
 		_actuators_out_0->control[actuator_controls_s::INDEX_PITCH] = 0;
 		_actuators_out_0->control[actuator_controls_s::INDEX_YAW] = 0;
 		_actuators_out_0->control[actuator_controls_s::INDEX_THROTTLE] =
