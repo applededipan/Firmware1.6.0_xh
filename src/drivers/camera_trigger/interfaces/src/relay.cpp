@@ -56,7 +56,7 @@ void CameraInterfaceRelay::setup(int pins, int polarity)
 			i = 0;
 			while ((single_pin = pins % 10)) {
 				_pins[i] = single_pin - 1;
-				printf("change: pins[%d]:%d\n",i,_pins[i]);
+				//printf("change: pins[%d]:%d\n",i,_pins[i]);
 			pins /= 10;
 			i++;
 		}
