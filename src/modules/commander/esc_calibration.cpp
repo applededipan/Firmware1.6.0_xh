@@ -99,7 +99,7 @@ int do_esc_calibration(orb_advert_t *mavlink_log_pub, struct actuator_armed_s* a
 
 	// Make sure battery is disconnected
 	orb_copy(ORB_ID(battery_status), batt_sub, &battery);
-	if (battery.voltage_filtered_v > 3.0f) {
+	if (battery.voltage_filtered_v > 5.0f) {
 		calibration_log_critical(mavlink_log_pub, CAL_QGC_FAILED_MSG, "Disconnect battery and try again");
 		goto Error;
 	}
@@ -154,7 +154,7 @@ int do_esc_calibration(orb_advert_t *mavlink_log_pub, struct actuator_armed_s* a
 			orb_check(batt_sub, &batt_updated);
 			if (batt_updated) {
 				orb_copy(ORB_ID(battery_status), batt_sub, &battery);
-				if (battery.voltage_filtered_v > 3.0f) {
+				if (battery.voltage_filtered_v > 6.0f) {
 					// Battery is connected, signal to user and start waiting again
 					batt_connected = true;
 					timeout_start = hrt_absolute_time();
