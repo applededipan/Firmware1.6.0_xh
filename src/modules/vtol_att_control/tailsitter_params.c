@@ -121,12 +121,15 @@ PARAM_DEFINE_INT32(VT_F_TRANS_EN, 0);
 PARAM_DEFINE_INT32(VT_B_TRANS_EN, 0);
 
 /**
- * Force Fixed-wing mode to realize motor differential steering
+ * The proportion of VTOL rudder output
  *
- * Force Fixed-wing mode to realize motor differential steering. 0 means disable.
+ * The proportion of VTOL rudder output. 0 means disable this parameter.
  *
- * @min 0 
- * @max 1
+ * @unit norm
+ * @min 0.0
+ * @max 1.0
+ * @decimal 2
+ * @increment 0.1
  * @group VTOL Attitude Control
  */
-PARAM_DEFINE_INT32(VT_FW_DIFF_EN, 0);
+PARAM_DEFINE_FLOAT(VT_FW_YAW_SCALE, 0.0f); 
