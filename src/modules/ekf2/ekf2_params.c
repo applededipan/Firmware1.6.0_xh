@@ -541,7 +541,7 @@ PARAM_DEFINE_INT32(EKF2_AID_MASK, 1);
  * @value 3 Vision
  *
  */
-PARAM_DEFINE_INT32(EKF2_HGT_MODE, 0);
+PARAM_DEFINE_INT32(EKF2_HGT_MODE, 1);
 
 /**
  * Measurement noise for range finder fusion

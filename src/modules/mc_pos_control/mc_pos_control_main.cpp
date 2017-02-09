@@ -91,7 +91,7 @@
 #define MIN_DIST		0.01f
 #define MANUAL_THROTTLE_MAX_MULTICOPTER	0.9f
 #define ONE_G	9.8066f
-
+#define POSITION_TC_DEFAULT 0.2f
 /**
  * Multicopter position control app start / stop handling function
  *
@@ -200,7 +200,8 @@ private:
 		param_t acc_hor_max;
 		param_t alt_mode;
 		param_t opt_recover;
-
+		param_t pitch_tc;
+		param_t roll_tc;	
 	}		_params_handles;		/**< handles for interesting parameters */
 
 	struct {
@@ -459,15 +460,16 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_params_handles.z_vel_i		= param_find("MPC_Z_VEL_I");
 	_params_handles.z_vel_d		= param_find("MPC_Z_VEL_D");
 	_params_handles.z_vel_max_up	= param_find("MPC_Z_VEL_MAX_UP");
-	_params_handles.z_vel_max_down	= param_find("MPC_Z_VEL_MAX");
-
+	_params_handles.z_vel_max_down	= param_find("MPC_Z_VEL_MAX_DN");
+/*
 	// transitional support: Copy param values from max to down
 	// param so that max param can be renamed in 1-2 releases
 	// (currently at 1.3.0)
 	float p;
 	param_get(param_find("MPC_Z_VEL_MAX"), &p);
 	param_set(param_find("MPC_Z_VEL_MAX_DN"), &p);
-
+	//suns20170208  MPC_Z_VEL_MAX and MPC_Z_VEL_MAX_DN is redundancy,so delete one
+*/
 	_params_handles.z_ff		= param_find("MPC_Z_FF");
 	_params_handles.xy_p		= param_find("MPC_XY_P");
 	_params_handles.xy_vel_p	= param_find("MPC_XY_VEL_P");
@@ -492,6 +494,9 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_params_handles.alt_mode = param_find("MPC_ALT_MODE");
 	_params_handles.opt_recover = param_find("VT_OPT_RECOV_EN");
 
+
+	_params_handles.pitch_tc = param_find("MC_PITCH_TC");
+	_params_handles.roll_tc = param_find("MC_ROLL_TC");	
 	/* fetch initial parameter values */
 	parameters_update(true);
 }
@@ -551,26 +556,30 @@ MulticopterPositionControl::parameters_update(bool force)
 
 		float v;
 		uint32_t v_i;
+		float pitch_tc, roll_tc,tc;
 		param_get(_params_handles.xy_p, &v);
-		_params.pos_p(0) = v;
-		_params.pos_p(1) = v;
+		param_get(_params_handles.pitch_tc, &pitch_tc);
+		param_get(_params_handles.roll_tc, &roll_tc);	
+		tc=fmax(roll_tc,pitch_tc);
+		_params.pos_p(0) = v * (POSITION_TC_DEFAULT /tc);
+		_params.pos_p(1) = v * (POSITION_TC_DEFAULT /tc);
 		param_get(_params_handles.z_p, &v);
-		_params.pos_p(2) = v;
+		_params.pos_p(2) = v * (POSITION_TC_DEFAULT /tc);
 		param_get(_params_handles.xy_vel_p, &v);
-		_params.vel_p(0) = v;
-		_params.vel_p(1) = v;
+		_params.vel_p(0) = v * (POSITION_TC_DEFAULT /tc);
+		_params.vel_p(1) = v * (POSITION_TC_DEFAULT /tc);
 		param_get(_params_handles.z_vel_p, &v);
-		_params.vel_p(2) = v;
+		_params.vel_p(2) = v * (POSITION_TC_DEFAULT /tc);
 		param_get(_params_handles.xy_vel_i, &v);
 		_params.vel_i(0) = v;
 		_params.vel_i(1) = v;
 		param_get(_params_handles.z_vel_i, &v);
 		_params.vel_i(2) = v;
 		param_get(_params_handles.xy_vel_d, &v);
-		_params.vel_d(0) = v;
-		_params.vel_d(1) = v;
+		_params.vel_d(0) = v * (POSITION_TC_DEFAULT /tc);
+		_params.vel_d(1) = v * (POSITION_TC_DEFAULT /tc);
 		param_get(_params_handles.z_vel_d, &v);
-		_params.vel_d(2) = v;
+		_params.vel_d(2) = v * (POSITION_TC_DEFAULT /tc);
 		param_get(_params_handles.xy_vel_max, &v);
 		_params.vel_max(0) = v;
 		_params.vel_max(1) = v;

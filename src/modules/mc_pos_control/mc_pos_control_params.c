@@ -189,7 +189,7 @@ PARAM_DEFINE_FLOAT(MPC_Z_VEL_I, 0.02f);
  * @decimal 3
  * @group Multicopter Position Control
  */
-PARAM_DEFINE_FLOAT(MPC_Z_VEL_D, 0.0f);
+PARAM_DEFINE_FLOAT(MPC_Z_VEL_D, 0.001f);
 
 /**
  * Maximum vertical ascent velocity
@@ -214,10 +214,11 @@ PARAM_DEFINE_FLOAT(MPC_Z_VEL_MAX_UP, 3.0f);
  * @max 4.0
  * @group Multicopter Position Control
  */
-PARAM_DEFINE_FLOAT(MPC_Z_VEL_MAX, 1.0f);
+//suns20170208  MPC_Z_VEL_MAX and MPC_Z_VEL_MAX_DN is redundancy,so delete MPC_Z_VEL_MAX 
+//PARAM_DEFINE_FLOAT(MPC_Z_VEL_MAX, 1.0f);
 
 /**
- * Transitional support, do not change / use
+ * Maximum vertical velocity in AUTO mode and endpoint for stabilized modes (ALTCTRL, POSCTRL).
  *
  * @unit m/s
  * @min 0.5
@@ -246,7 +247,7 @@ PARAM_DEFINE_FLOAT(MPC_Z_FF, 0.5f);
  * @decimal 2
  * @group Multicopter Position Control
  */
-PARAM_DEFINE_FLOAT(MPC_XY_P, 0.95f);
+PARAM_DEFINE_FLOAT(MPC_XY_P, 0.3f);
 
 /**
  * Proportional gain for horizontal velocity error
@@ -256,7 +257,7 @@ PARAM_DEFINE_FLOAT(MPC_XY_P, 0.95f);
  * @decimal 2
  * @group Multicopter Position Control
  */
-PARAM_DEFINE_FLOAT(MPC_XY_VEL_P, 0.09f);
+PARAM_DEFINE_FLOAT(MPC_XY_VEL_P, 0.07f);
 
 /**
  * Integral gain for horizontal velocity error
@@ -268,7 +269,7 @@ PARAM_DEFINE_FLOAT(MPC_XY_VEL_P, 0.09f);
  * @decimal 3
  * @group Multicopter Position Control
  */
-PARAM_DEFINE_FLOAT(MPC_XY_VEL_I, 0.02f);
+PARAM_DEFINE_FLOAT(MPC_XY_VEL_I, 0.01f);
 
 /**
  * Differential gain for horizontal velocity error. Small values help reduce fast oscillations. If value is too big oscillations will appear again.
@@ -278,7 +279,7 @@ PARAM_DEFINE_FLOAT(MPC_XY_VEL_I, 0.02f);
  * @decimal 3
  * @group Multicopter Position Control
  */
-PARAM_DEFINE_FLOAT(MPC_XY_VEL_D, 0.01f);
+PARAM_DEFINE_FLOAT(MPC_XY_VEL_D, 0.009f);
 
 /**
  * Nominal horizontal velocity
@@ -321,7 +322,7 @@ PARAM_DEFINE_FLOAT(MPC_XY_VEL_MAX, 8.0f);
  * @decimal 2
  * @group Multicopter Position Control
  */
-PARAM_DEFINE_FLOAT(MPC_XY_FF, 0.5f);
+PARAM_DEFINE_FLOAT(MPC_XY_FF, 0.1f);
 
 /**
  * Maximum tilt angle in air
@@ -456,7 +457,7 @@ PARAM_DEFINE_FLOAT(MPC_VELD_LP, 5.0f);
  * @decimal 2
  * @group Multicopter Position Control
  */
-PARAM_DEFINE_FLOAT(MPC_ACC_HOR_MAX, 5.0f);
+PARAM_DEFINE_FLOAT(MPC_ACC_HOR_MAX, 3.0f);
 
 /**
  * Altitude control mode, note mode 1 only tested with LPE

@@ -53,7 +53,7 @@
  * @value 3 Sensors and Motors
  * @group UAVCAN
  */
-PARAM_DEFINE_INT32(UAVCAN_ENABLE, 0);
+PARAM_DEFINE_INT32(UAVCAN_ENABLE, 2);
 
 /**
  * UAVCAN Node ID.

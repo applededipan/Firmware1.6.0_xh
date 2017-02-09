@@ -3218,7 +3218,7 @@ PARAM_DEFINE_INT32(PWM_RATE, 400);
  * @unit us
  * @group PWM Outputs
  */
-PARAM_DEFINE_INT32(PWM_MIN, 1000);
+PARAM_DEFINE_INT32(PWM_MIN, 1250);
 
 /**
  * Set the maximum PWM for the MAIN outputs
@@ -3236,7 +3236,7 @@ PARAM_DEFINE_INT32(PWM_MIN, 1000);
  * @unit us
  * @group PWM Outputs
  */
-PARAM_DEFINE_INT32(PWM_MAX, 2000);
+PARAM_DEFINE_INT32(PWM_MAX, 1950);
 
 /**
  * Set the disarmed PWM for MAIN outputs
@@ -3255,7 +3255,7 @@ PARAM_DEFINE_INT32(PWM_MAX, 2000);
  * @unit us
  * @group PWM Outputs
  */
-PARAM_DEFINE_INT32(PWM_DISARMED, 0);
+PARAM_DEFINE_INT32(PWM_DISARMED, 900);
 
 /**
  * Set the minimum PWM for the MAIN outputs
