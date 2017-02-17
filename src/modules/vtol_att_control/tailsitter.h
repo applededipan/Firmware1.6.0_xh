@@ -70,7 +70,7 @@ private:
 		float airspeed_trans;			/**< airspeed at which we switch to fw mode after transition */
 		float airspeed_blend_start;		/**< airspeed at which we start blending mc/fw controls */
 		int elevons_mc_lock;			/**< lock elevons in multicopter mode */
-
+        float vtol_btrans_thr;          // apple 2016/11/26
 	} _params_tailsitter;
 
 	struct {
@@ -80,7 +80,7 @@ private:
 		param_t airspeed_trans;
 		param_t airspeed_blend_start;
 		param_t elevons_mc_lock;
-
+        param_t vtol_btrans_thr; // apple 2016/11/26
 	} _params_handles_tailsitter;
 
 	enum vtol_mode {
