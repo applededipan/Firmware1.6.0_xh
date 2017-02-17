@@ -455,8 +455,8 @@ then
 	fi
 	if param greater TRIG_MODE 0
 	then
-		set FMU_MODE pwm4
-		set AUX_MODE pwm4
+		#set FMU_MODE pwm4
+		#set AUX_MODE pwm4
 		camera_trigger start
 	fi
 
@@ -1005,8 +1005,8 @@ then
 		if ver hwcmp PX4FMU_V4
 		then
 			# On Pixracer use Telem 2 port (TL2).
-			snapdragon_rc_pwm start -d /dev/ttyS2
-			fmu mode_pwm4
+			#snapdragon_rc_pwm start -d /dev/ttyS2
+			fmu mode_pwm
 		fi
 
 		pwm failsafe -c 1234 -p 900

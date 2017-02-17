@@ -62,6 +62,7 @@
 #include <uORB/topics/sensor_combined.h>
 #include <uORB/topics/vehicle_command.h>
 #include <uORB/topics/vehicle_local_position.h>
+#include <uORB/topics/vehicle_global_position.h>
 #include <poll.h>
 #include <drivers/drv_gpio.h>
 #include <drivers/drv_hrt.h>
@@ -71,7 +72,7 @@
 #include "interfaces/src/relay.h"
 
 #define TRIGGER_PIN_DEFAULT 1
-
+static orb_advert_t mavlink_log_pub = NULL;
 extern "C" __EXPORT int camera_trigger_main(int argc, char *argv[]);
 
 typedef enum {
@@ -157,7 +158,7 @@ private:
 
 	int			_vcommand_sub;
 	int			_vlposition_sub;
-
+	int     		_vgposition_sub;
 	orb_advert_t		_trigger_pub;
 
 	param_t			_p_mode;
@@ -227,6 +228,7 @@ CameraTrigger::CameraTrigger() :
 	_valid_position(false),
 	_vcommand_sub(-1),
 	_vlposition_sub(-1),
+	_vgposition_sub(-1),
 	_trigger_pub(nullptr),
 	_camera_interface_mode(CAMERA_INTERFACE_MODE_RELAY),
 	_camera_interface(nullptr)
@@ -509,6 +511,16 @@ CameraTrigger::cycle_trampoline(void *arg)
 				if ((trig->_last_shoot_position - current_position).length() >= trig->_distance) {
 					trig->shootOnce();
 					trig->_last_shoot_position = current_position;
+					struct vehicle_global_position_s gpos;
+					if (trig->_vgposition_sub < 0) {
+						trig->_vgposition_sub = orb_subscribe(ORB_ID(vehicle_global_position));
+					}
+					orb_copy(ORB_ID(vehicle_global_position), trig->_vgposition_sub, &gpos);
+					if (gpos.lat > 1e-7 && gpos.lon > 1e-7) {
+						mavlink_log_critical(&mavlink_log_pub,
+					     		"lat: %.7f, lon: %.7f ,seq:%d",
+					     			(double)gpos.lat,(double)gpos.lon,trig->_trigger_seq);
+	}
 				}
 			}
 
@@ -535,8 +547,9 @@ CameraTrigger::engage(void *arg)
 	trig->_camera_interface->trigger(true);
 
 	report.seq = trig->_trigger_seq++;
-
+	
 	orb_publish(ORB_ID(camera_trigger), trig->_trigger_pub, &report);
+
 }
 
 void

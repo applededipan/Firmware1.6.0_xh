@@ -182,7 +182,7 @@ stm32_boardinitialize(void)
 	//stm32_configgpio(GPIO_8266_PD);
 	//stm32_configgpio(GPIO_8266_RST);
 	//stm32_configgpio(GPIO_BTN_SAFETY);
-/add Payload and servo out 
+//add Payload and servo out 
 	stm32_configgpio(GPIO_VDD_5V_PAYLOAD_EN);
 	stm32_gpiowrite(GPIO_VDD_5V_PAYLOAD_EN, 0);
 	stm32_configgpio(GPIO_VDD_5V_SERVO_EN);
@@ -446,7 +446,7 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 
 	/* Get the SPI port for the FRAM */
 
-	spi2 = stm32_spibus_initialize(4);
+	spi4 = stm32_spibus_initialize(4);
 
 	if (!spi4) {
 		message("[boot] FAILED to initialize SPI port 2\n");

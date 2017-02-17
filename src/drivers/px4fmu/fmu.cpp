@@ -971,7 +971,7 @@ void PX4FMU::rc_io_invert(bool invert)
 
 	if (!invert) {
 		// set FMU_RC_OUTPUT high to pull RC_INPUT up
-		px4_arch_gpiowrite(GPIO_RC_OUT, 1);
+		//px4_arch_gpiowrite(GPIO_RC_OUT, 1);
 	}
 
 #endif
@@ -1027,7 +1027,7 @@ PX4FMU::cycle()
 		sbus_config(_rcs_fd, false);
 #ifdef GPIO_PPM_IN
 		// disable CPPM input by mapping it away from the timer capture input
-		px4_arch_unconfiggpio(GPIO_PPM_IN);
+		//px4_arch_unconfiggpio(GPIO_PPM_IN);
 #endif
 #endif
 
@@ -1597,7 +1597,7 @@ PX4FMU::cycle()
 		if (_rc_scan_begin == 0) {
 			_rc_scan_begin = _cycle_timestamp;
 			// Configure timer input pin for CPPM
-			px4_arch_configgpio(GPIO_PPM_IN);
+			//px4_arch_configgpio(GPIO_PPM_IN);
 			rc_io_invert(false);
 
 		} else if (_rc_scan_locked
@@ -1618,7 +1618,7 @@ PX4FMU::cycle()
 
 		} else {
 			// disable CPPM input by mapping it away from the timer capture input
-			px4_arch_unconfiggpio(GPIO_PPM_IN);
+			//px4_arch_unconfiggpio(GPIO_PPM_IN);
 			// Scan the next protocol
 			set_rc_scan_state(RC_SCAN_SBUS);
 		}
@@ -2045,30 +2045,6 @@ PX4FMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 			break;
 		}
 		
-#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 14
-
-	case PWM_SERVO_SET(13):
-	case PWM_SERVO_SET(12):
-		if (_mode < MODE_14PWM) {
-			ret = -EINVAL;
-			break;
-		}
-
-#endif	
-		
-//12 pwm
-#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 12
-
-	case PWM_SERVO_SET(11):
-	case PWM_SERVO_SET(10):
-	case PWM_SERVO_SET(9):
-	case PWM_SERVO_SET(8):
-		if (_mode < MODE_12PWM) {
-			ret = -EINVAL;
-			break;
-		}
-
-#endif
 
 	case PWM_SERVO_SET_TRIM_PWM: {
 			struct pwm_output_values *pwm = (struct pwm_output_values *)arg;
@@ -2098,6 +2074,30 @@ PX4FMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 			arg = (unsigned long)&pwm;
 			break;
 		}
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 14
+
+	case PWM_SERVO_SET(13):
+	case PWM_SERVO_SET(12):
+		if (_mode < MODE_14PWM) {
+			ret = -EINVAL;
+			break;
+		}
+
+#endif	
+		
+//12 pwm
+#if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 12
+
+	case PWM_SERVO_SET(11):
+	case PWM_SERVO_SET(10):
+	case PWM_SERVO_SET(9):
+	case PWM_SERVO_SET(8):
+		if (_mode < MODE_12PWM) {
+			ret = -EINVAL;
+			break;
+		}
+
+#endif
 
 #if defined(BOARD_HAS_PWM) && BOARD_HAS_PWM >= 8
 

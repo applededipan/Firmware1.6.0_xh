@@ -1,6 +1,6 @@
 #include "relay.h"
 
-constexpr uint32_t CameraInterfaceRelay::_gpios[6];
+constexpr uint32_t CameraInterfaceRelay::_gpios[2];
 
 CameraInterfaceRelay::CameraInterfaceRelay():
 	CameraInterface(),
