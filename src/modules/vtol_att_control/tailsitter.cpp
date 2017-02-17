@@ -337,8 +337,9 @@ void Tailsitter::update_transition_state()
 	        matrix::Eulerf eulertemp = matrix::Quatf(_v_att->q);
 	        float pitchtemp = eulertemp.theta();
             
-            if (pitchtemp >= (PITCH_TRANSITION_BACK-0.1f)) {				
+            if (pitchtemp >= (PITCH_TRANSITION_BACK-0.15f)) {				
 				_v_att_sp->thrust = _v_att_sp->thrust * _params_tailsitter.vtol_btrans_thr;
+				_v_att_sp->thrust = math::constrain(_v_att_sp->thrust, _thrust_transition_start * 0.5f, _thrust_transition_start);
 				
 			} else {				
 				_v_att_sp->thrust = _thrust_transition_start * _params_tailsitter.vtol_btrans_thr;
