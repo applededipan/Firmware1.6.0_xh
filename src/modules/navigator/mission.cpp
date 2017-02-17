@@ -208,6 +208,10 @@ Mission::on_active()
 	/* reset mission items if needed */
 	if (onboard_updated || offboard_updated) {
 		set_mission_items();
+		if(_current_offboard_mission_index&&_navigator->get_position_setpoint_triplet()->current.valid)
+		{
+			set_previous_pos_setpoint(_navigator->get_global_position()->lat, _navigator->get_global_position()->lon);
+		}
 	}
 
 	/* lets check if we reached the current mission item */
