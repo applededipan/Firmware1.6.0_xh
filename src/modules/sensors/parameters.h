@@ -112,6 +112,7 @@ struct Parameters {
 	float rc_armswitch_th;
 	float rc_trans_th;
 	float rc_gear_th;
+	float rc_trans_ext_th; // apple 2016/11/26
 	bool rc_assist_inv;
 	bool rc_auto_inv;
 	bool rc_rattitude_inv;
@@ -124,6 +125,7 @@ struct Parameters {
 	bool rc_armswitch_inv;
 	bool rc_trans_inv;
 	bool rc_gear_inv;
+	bool rc_trans_ext_inv; // apple 2016/11/26
 
 	float battery_voltage_scaling;
 	float battery_current_scaling;
@@ -210,6 +212,8 @@ struct ParameterHandles {
 	param_t baro_qnh;
 
 	param_t vibe_thresh; /**< vibration threshold */
+	
+	param_t rc_trans_ext_th; // apple 2016/11/26
 
 };
 

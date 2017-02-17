@@ -148,6 +148,8 @@ int initialize_parameter_handles(ParameterHandles &parameter_handles)
 	parameter_handles.baro_qnh = param_find("SENS_BARO_QNH");
 
 	parameter_handles.vibe_thresh = param_find("ATT_VIBE_THRESH");
+	
+	parameter_handles.rc_trans_ext_th = param_find("RC_TRANS_EXT_TH"); // apple 2016/11/26
 
 	// These are parameters for which QGroundControl always expects to be returned in a list request.
 	// We do a param_find here to force them into the list.
@@ -444,6 +446,9 @@ int update_parameters(const ParameterHandles &parameter_handles, Parameters &par
 
 	param_get(parameter_handles.vibe_thresh, &parameters.vibration_warning_threshold);
 
+	param_get(parameter_handles.rc_trans_ext_th, &(parameters.rc_trans_ext_th)); // apple 2016/11/26
+	parameters.rc_trans_ext_inv = (parameters.rc_trans_ext_th < 0);
+	parameters.rc_trans_ext_th = fabs(parameters.rc_trans_ext_th);	
 	return ret;
 }
 
