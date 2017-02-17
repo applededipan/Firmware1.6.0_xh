@@ -64,10 +64,15 @@
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/vehicle_global_position.h> //added by dzp 2016/8/24
 #include <uORB/topics/camera_feedback.h>         //added by dzp 2016/8/24 added a topic
+#include <uORB/topics/vehicle_attitude.h>  //added by dzp 2016/9/12
+#include <uORB/topics/airspeed.h>          //added by dzp 2016/9/12
+#include <time.h>                          //
+#include <sys/time.h>                      //
 #include <poll.h>
 #include <drivers/drv_gpio.h>
 #include <drivers/drv_hrt.h>
 #include <board_config.h>
+#include <lib/geo/geo.h>
 
 #include "interfaces/src/pwm.h"
 #include "interfaces/src/relay.h"
@@ -160,13 +165,20 @@ private:
 	int			_vcommand_sub;
 	int			_vlposition_sub;
 	int         _vgposition_sub;       //added by dzp 2016/8/24
+	int         _vattitude_sub;        //added by dzp 2016/9/12
+	int         _airspeed_sub;
 	int32_t  _lat;
 	int32_t  _lng;
+	float  _alt_msl;
+	float  _alt_rel;
+	float  _roll;
+	float  _pitch;
+	float  _yaw;
+  float  _airspeed;
+  uint64_t _gps_time_usec;
 
 	orb_advert_t		_trigger_pub;
 	orb_advert_t		_feedback_pub; //added by dzp 2016/8/24
-
-	//struct camera_feedback_s	_report; //added by dzp 2016/8/24
 
 	param_t			_p_mode;
 	param_t			_p_activation_time;
@@ -236,8 +248,17 @@ CameraTrigger::CameraTrigger() :
 	_vcommand_sub(-1),
 	_vlposition_sub(-1),
 	_vgposition_sub(-1),
+	_vattitude_sub(-1),
+	_airspeed_sub(-1),
 	_lat(0),
 	_lng(0),
+	_alt_msl(0.0f),
+	_alt_rel(0.0f),
+	_roll(0.0f),
+	_pitch(0.0f),
+	_yaw(0.0f),
+	_airspeed(0.0f),
+	_gps_time_usec(0),
 	_trigger_pub(nullptr),
 	_feedback_pub(nullptr),                             //added by dzp 2016/8/24
 	_camera_interface_mode(CAMERA_INTERFACE_MODE_RELAY),
@@ -431,10 +452,32 @@ CameraTrigger::cycle_trampoline(void *arg)
 
 	
 	/* set timestamp the instant before the trigger goes off */
-	
-	trig->_lat = gpos.lat*10000000;;
-	trig->_lng = gpos.lon*10000000;;
+	trig->_gps_time_usec = gpos.time_utc_usec;
+	trig->_lat = gpos.lat*10000000;
+	trig->_lng = gpos.lon*10000000;
+	trig->_alt_msl = gpos.alt;
+/*********************************************************************************/
+	if (trig->_vattitude_sub < 0) {
+			trig->_vattitude_sub = orb_subscribe(ORB_ID(vehicle_attitude));
+	}
+	struct vehicle_attitude_s vatt;
 
+	orb_copy(ORB_ID(vehicle_attitude), trig->_vattitude_sub, &vatt);
+	matrix::Eulerf euler = matrix::Quatf(vatt.q);
+		
+	trig->_roll = euler.phi() * (180.0f / (float)M_PI);
+	trig->_pitch = euler.theta() * (180.0f / (float)M_PI);
+	trig->_yaw = _wrap_2pi(euler.psi()) * M_RAD_TO_DEG_F;
+/*********************************************************************************/
+	if (trig->_airspeed_sub < 0) {
+				trig->_airspeed_sub = orb_subscribe(ORB_ID(airspeed));
+		}
+	struct airspeed_s airs;
+
+	orb_copy(ORB_ID(airspeed), trig->_airspeed_sub, &airs);
+
+	trig->_airspeed = airs.true_airspeed_m_s;
+/*********************************************************************************/
 	if (trig->_vcommand_sub < 0) {
 		trig->_vcommand_sub = orb_subscribe(ORB_ID(vehicle_command));
 	}
@@ -490,7 +533,8 @@ CameraTrigger::cycle_trampoline(void *arg)
 		struct vehicle_local_position_s pos;
 
 		orb_copy(ORB_ID(vehicle_local_position), trig->_vlposition_sub, &pos);
-
+		trig->_alt_rel = pos.ref_alt;
+		
 		if (pos.xy_valid) {
 
 			bool turning_on = false;
@@ -569,15 +613,34 @@ CameraTrigger::engage(void *arg)
 
 	orb_publish(ORB_ID(camera_trigger), trig->_trigger_pub, &report);
 	
-	report2.timestamp = hrt_absolute_time();
+	/*****************************************************************************************************************/
+
+	uint64_t time_usec;
+	uint64_t clock_usec;
+
+  struct timespec ts;
+  px4_clock_gettime(CLOCK_REALTIME, &ts);
+  clock_usec = ts.tv_sec*1e6 + ts.tv_nsec/1e3 + 28800*1e6;
+//    printf("_gps_time_usec:%llu \n",trig->_gps_time_usec);
+  if((trig->_gps_time_usec/1e6) >= ((time_t)1234567890ULL)){
+    	 if(trig->_gps_time_usec/1e6 - ts.tv_sec > 315360000){//10 years
+    	    	return;
+    	   }else{  time_usec = clock_usec;    }
+  }else{  return;  }
+/**********************************************************************************************************************/
+	report2.timestamp = time_usec;
 	report2.lat = trig->_lat;
 	report2.lng = trig->_lng;
+	report2.alt_msl = trig->_alt_msl;
+	report2.alt_rel = trig->_alt_rel;
+	report2.roll = trig->_roll;
+	report2.pitch = trig->_pitch;
+	report2.yaw = trig->_yaw;
+	report2.foc_len = trig->_airspeed;
 	
 	if(!trig->_feedback_pub)
 		trig->_feedback_pub = orb_advertise(ORB_ID(camera_feedback), &report2);
-	else
-		orb_publish(ORB_ID(camera_feedback), trig->_feedback_pub, &report2); //added by dzp 2016/8/24
-	
+	else{ orb_publish(ORB_ID(camera_feedback), trig->_feedback_pub, &report2);	}
 }
 
 void
