@@ -110,7 +110,7 @@ public:
 	~VtolAttitudeControl();
 
 	int start();	/* start the task and return OK on success */
-	bool is_fixed_wing_requested();
+	char is_fixed_wing_requested();
 	void abort_front_transition(const char *reason);
 
 	struct vehicle_attitude_s 			*get_att() {return &_v_att;}

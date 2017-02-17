@@ -131,7 +131,7 @@ void Tailsitter::update_vtol_state()
 	matrix::Eulerf euler = matrix::Quatf(_v_att->q);
 	float pitch = euler.theta();
 
-	if (!_attc->is_fixed_wing_requested()) {
+	if (_attc->is_fixed_wing_requested() == 0) {
 
 
 		switch (_vtol_schedule.flight_mode) { // user switchig to MC mode
@@ -164,7 +164,7 @@ void Tailsitter::update_vtol_state()
 			break;
 		}
 
-	} else {  // user switchig to FW mode
+	} else if (_attc->is_fixed_wing_requested() == 1) {  // user switchig to FW mode
 
 		switch (_vtol_schedule.flight_mode) {
 		case MC_MODE:
@@ -198,6 +198,13 @@ void Tailsitter::update_vtol_state()
 			*/
 			break;
 		}
+	} else if(_attc->is_fixed_wing_requested() == 2) {  // force to FW mode 
+		
+		_vtol_schedule.flight_mode = FW_MODE;
+		
+	} else {
+		
+		// nothing to do!
 	}
 
 	// map tailsitter specific control phases to simple control modes
