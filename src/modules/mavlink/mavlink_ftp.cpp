@@ -399,7 +399,7 @@ MavlinkFTP::_workSearchVersion(PayloadHeader* payload)
 		}	
 	}
 #endif
-
+#ifdef __PX4_NUTTX
 	char ver[50] = {0};	
 	uint8_t selectedComponent = payload->data[0];
 	switch(selectedComponent)
@@ -429,6 +429,7 @@ MavlinkFTP::_workSearchVersion(PayloadHeader* payload)
 	sprintf((char*)&payload->data[0], "%s", ver);
 	*((char *)&payload->data[strlen(ver) + 1]) = '\0';
 	payload->size = strlen(ver)+1;
+#endif
 	return kErrNone;
 }
 

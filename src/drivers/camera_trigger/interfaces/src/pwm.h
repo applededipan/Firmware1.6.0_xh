@@ -5,7 +5,7 @@
  *
  */
 #pragma once
-
+#ifdef __PX4_NUTTX
 #include <drivers/drv_hrt.h>
 #include <systemlib/param/param.h>
 
@@ -27,9 +27,10 @@ public:
 
 	int _pins[6];
 private:
-	void setup();
+	void setup(int pins, int polarity);
 
 	param_t _p_pin;
 	bool _camera_is_on;
 
 };
+#endif

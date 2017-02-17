@@ -8,6 +8,7 @@ set(config_module_list
 	drivers/gps
 	drivers/pwm_out_sim
 	drivers/vmount
+	drivers/camera_trigger
 
 	platforms/common
 	platforms/posix/drivers/accelsim

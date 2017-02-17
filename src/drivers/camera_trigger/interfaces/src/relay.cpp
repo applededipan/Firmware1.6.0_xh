@@ -1,3 +1,4 @@
+#ifdef __PX4_NUTTX
 #include "relay.h"
 
 constexpr uint32_t CameraInterfaceRelay::_gpios[2];
@@ -35,18 +36,35 @@ CameraInterfaceRelay::CameraInterfaceRelay():
 		i++;
 	}
 
-	setup();
+	setup(1234,1234);
 }
 
 CameraInterfaceRelay::~CameraInterfaceRelay()
 {
 }
 
-void CameraInterfaceRelay::setup()
+void CameraInterfaceRelay::setup(int pins, int polarity)
 {
-	for (unsigned i = 0; i < sizeof(_pins) / sizeof(_pins[0]); i++) {
-		px4_arch_configgpio(_gpios[_pins[i]]);
-		px4_arch_gpiowrite(_gpios[_pins[i]], !_polarity);
+	if (pins != 1234 && polarity != 1234) {
+			unsigned i = 0;
+			int single_pin;
+			_polarity = polarity;
+			// Set all pins as invalid
+			for ( i = 0; i < sizeof(_pins) / sizeof(_pins[0]); i++) {
+				_pins[i] = -1;
+			}
+			i = 0;
+			while ((single_pin = pins % 10)) {
+				_pins[i] = single_pin - 1;
+				//printf("change: pins[%d]:%d\n",i,_pins[i]);
+			pins /= 10;
+			i++;
+		}
+	} else {
+			for (unsigned i = 0; i < sizeof(_pins) / sizeof(_pins[0]); i++) {
+				px4_arch_configgpio(_gpios[_pins[i]]);
+				px4_arch_gpiowrite(_gpios[_pins[i]], !_polarity);
+			}
 	}
 }
 
@@ -75,3 +93,4 @@ void CameraInterfaceRelay::info()
 	warnx("Relay - camera triggering, pins 1-3 : %d,%d,%d polarity : %s", _pins[0], _pins[1], _pins[2],
 	      _polarity ? "ACTIVE_HIGH" : "ACTIVE_LOW");
 }
+#endif

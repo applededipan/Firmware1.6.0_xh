@@ -9,6 +9,7 @@ float32 roll
 float32 pitch
 float32 yaw
 float32 foc_len
+float32 ground_speed
 uint16 img_idx
 uint8 target_system
 uint8 cam_idx
