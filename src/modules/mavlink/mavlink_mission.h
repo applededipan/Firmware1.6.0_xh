@@ -99,8 +99,11 @@ public:
 	void set_verbose(bool v) { _verbose = v; }
 
 	void check_active_mission(void);
-
+	void send_handle_mission_item_ack(mavlink_mission_item_t wp_buff);
+	
+	void change_airspeed(float speed);
 private:
+	bool flag__1E7, flag__setting;
 	enum MAVLINK_WPM_STATES _state;					///< Current state
 
 	uint64_t		_time_last_recv;
@@ -171,6 +174,9 @@ private:
 
 	void send_mission_item(uint8_t sysid, uint8_t compid, uint16_t seq);
 
+	mavlink_mission_item_t read_mission_item(uint16_t seq);
+	void write_mission_item( uint16_t seq,mavlink_mission_item_t  wp);
+
 	void send_mission_request(uint8_t sysid, uint8_t compid, uint16_t seq);
 
 	/**
@@ -198,8 +204,13 @@ private:
 	void handle_mission_item_int(const mavlink_message_t *msg);
 	void handle_mission_item_both(const mavlink_message_t *msg);
 
+	void send_handle_mission_item_ack(mavlink_mission_item_t *wp_buff);
+
 	void handle_mission_clear_all(const mavlink_message_t *msg);
 
+	void coordinate_transformation(const mavlink_message_t *msg);
+	
+	void architecture_camera_trigger(void);
 	/**
 	 * Parse mavlink MISSION_ITEM message to get mission_item_s.
 	 *
@@ -207,7 +218,7 @@ private:
 	 *			       depending on _int_mode
 	 * @param mission_item	       pointer to mission_item to construct
 	 */
-	int parse_mavlink_mission_item(const mavlink_mission_item_t *mavlink_mission_item, struct mission_item_s *mission_item);
+	int parse_mavlink_mission_item( mavlink_mission_item_t  *mavlink_mission_item, struct mission_item_s *mission_item);
 
 	/**
 	 * Format mission_item_s as mavlink MISSION_ITEM(_INT) message.
