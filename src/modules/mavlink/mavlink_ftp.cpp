@@ -45,10 +45,22 @@
 #include "mavlink_main.h"
 #include "mavlink_tests/mavlink_ftp_test.h"
 
+#include <sys/stat.h> //add for fs 2016/5/30
+#include <systemlib/err.h> //add for debug print to console
+
+#ifdef __PX4_NUTTX
+static bool file_exist(const char *filename);
+#include <builtin/builtin.h> //add for syscmd 2016/6/12
+#include "build_git_version.h"
+#endif
+
 // Uncomment the line below to get better debug output. Never commit with this left on.
 //#define MAVLINK_FTP_DEBUG
 
-MavlinkFTP::MavlinkFTP(Mavlink *mavlink) :
+//int buf_size_1 = 0;
+//int buf_size_2 = 0;
+
+MavlinkFTP::MavlinkFTP(Mavlink* mavlink) :
 	MavlinkStream(mavlink),
 	_session_info{},
 	_utRcvMsgFunc{},
@@ -157,6 +169,14 @@ MavlinkFTP::handle_message(const mavlink_message_t *msg)
 	}
 }
 
+#ifdef __PX4_NUTTX 
+bool file_exist(const char *filename)
+{
+	struct stat buffer;
+	return stat(filename, &buffer) == 0;
+}
+#endif
+
 /// @brief Processes an FTP message
 void
 MavlinkFTP::_process_request(mavlink_file_transfer_protocol_t *ftp_req, uint8_t target_system_id)
@@ -241,7 +261,71 @@ MavlinkFTP::_process_request(mavlink_file_transfer_protocol_t *ftp_req, uint8_t 
 	case kCmdCalcFileCRC32:
 		errorCode = _workCalcFileCRC32(payload);
 		break;
+   /* added by gc */
+	case kCmdSearchVersion:
+		errorCode = _workSearchVersion(payload);
+		break;
+	/* added for bootloader */
+	case kCmdBoot:
+		{
+			uint8_t selectedComponent = payload->data[0];
+			char bootFirmware[50];
+			errorCode = _workReBoot(payload);
+			
+			switch(selectedComponent){
+				case Board:
+				    #ifdef __PX4_NUTTX
+					/***************added by dzp  :set boot flag**************/
+					if(file_exist("/fs/microsd/firmware.bin")){
+						while(file_exist("/fs/microsd/firmware.txt")){
+						unlink("/fs/microsd/firmware.txt");
+						}
+					 open("/fs/microsd/firmware.txt", O_CREAT | O_RDWR);
+					}
+					#endif
+					break;
+				case SmartConsole:
+					strcpy(bootFirmware,"0200113DR: reboot");
+					break;
+				case GPS:
+				    #ifdef __PX4_NUTTX
+					 /***************added by dzp  :system command test for gps updating**************/
+					{
+						const char* appname = "uavcan";
+						char arg1[6] = "start";
+						char arg2[3] = "fw";
+						char* argv[2];
+						char* argvs[1];
+						const char* redirfile = NULL;
+						argvs[0]= arg1;
+						argv[0] = arg1;
+						argv[1] = arg2;
+						int oflags = 0;
+						sched_lock();
+						warnx("\n uavcan start");
+						exec_builtin(appname, argvs, redirfile, oflags);
+						sched_unlock();
 
+						sched_lock();
+						warnx("\n uavcan start fw");
+						exec_builtin(appname, argv, redirfile, oflags);
+						sched_unlock();
+					}
+					#else
+						     #pragma message("this is SITL pragma test")
+					#endif
+					break;
+				case SmartBattery:
+					strcpy(bootFirmware,"020011SMB: reboot");
+					break;
+				case Gimbal:
+					strcpy(bootFirmware,"020011GIB: reboot");
+					break;
+				default:
+					break;
+			}
+			break;
+		}
 	default:
 		errorCode = kErrUnknownCommand;
 		break;
@@ -288,14 +372,99 @@ MavlinkFTP::_reply(mavlink_file_transfer_protocol_t *ftp_req)
 
 	ftp_req->target_network = 0;
 	ftp_req->target_component = 0;
-#ifdef MAVLINK_FTP_UNIT_TEST
+//#ifdef MAVLINK_FTP_UNIT_TEST
 	// Unit test hook is set, call that instead
-	_utRcvMsgFunc(ftp_req, _worker_data);
-#else
+//	_utRcvMsgFunc(ftp_req, _worker_data);
+//#else
 	mavlink_msg_file_transfer_protocol_send_struct(_mavlink->get_channel(), ftp_req);
-#endif
+//#endif
 
 }
+
+/* added by gc */
+MavlinkFTP::ErrorCode
+MavlinkFTP::_workSearchVersion(PayloadHeader* payload)
+{
+#if 0
+	MavlinkStream* _streams = _mavlink->get_streams();
+	MavlinkStream* stream;
+	LL_FOREACH(_streams, stream)
+	{
+		//if((stream->get_id() != MAVLINK_MSG_ID_FILE_TRANSFER_PROTOCOL) && strcmp(stream->get_name(), "HEARTBEAT")
+		//	&& strcmp(stream->get_name(), "SYS_STATUS") && strcmp(stream->get_name(), "EXTENDED_SYS_STATE"))
+		if(!strncmp(stream->get_name(), "SYS_STATUS",10))		
+		{
+			LL_DELETE(_streams, stream);
+			delete(stream);
+		}	
+	}
+#endif
+
+	char ver[50] = {0};	
+	uint8_t selectedComponent = payload->data[0];
+	switch(selectedComponent)
+	{
+		case Board:
+		strcpy(ver,PX4_GIT_TAG_STR);
+            	warnx("Board firmware ver is %s",ver);
+			
+			break;
+		case SmartConsole:
+			strcpy(ver,"0200113DR:Copter V1.1.1");
+			break;
+		case GPS:
+			strcpy(ver,"020011GPS:Copter V2.2.2");
+			break;
+		case SmartBattery:
+			strcpy(ver,"020011SMB:Copter V4.4.4");
+			break;
+		case Gimbal:
+			strcpy(ver,"020011GIB:Copter V5.5.5");
+			break;
+		default:
+			//strcpy(ver,"020011APM:Copter V3.3.3");
+			break;
+	}	
+
+	sprintf((char*)&payload->data[0], "%s", ver);
+	*((char *)&payload->data[strlen(ver) + 1]) = '\0';
+	payload->size = strlen(ver)+1;
+	return kErrNone;
+}
+
+MavlinkFTP::ErrorCode
+MavlinkFTP::_workReBoot(PayloadHeader* payload)
+{
+    char ver[40];
+    uint8_t selectedComponent = payload->data[0];
+    switch(selectedComponent)
+    {
+        case Board:
+            strcpy(ver,"020011APM: reboot");
+            break;
+        case SmartConsole:
+            strcpy(ver,"0200113DR: reboot");
+            break;
+        case GPS:
+            strcpy(ver,"020011GPS: reboot");
+            break;
+        case SmartBattery:
+            strcpy(ver,"020011SMB: reboot");
+            break;
+        case Gimbal:
+            strcpy(ver,"020011GIB: reboot");
+            break;
+        default:
+
+            break;
+    }
+
+    sprintf((char*)&payload->data[0], "%s", ver);
+    *((char *)&payload->data[strlen(ver) + 1]) = '\0';
+    payload->size = strlen(ver)+1;
+    return kErrNone;
+}
+/* add end */
 
 /// @brief Responds to a List command
 MavlinkFTP::ErrorCode
@@ -459,6 +628,38 @@ MavlinkFTP::_workOpen(PayloadHeader *payload, int oflag)
 #ifdef MAVLINK_FTP_DEBUG
 	warnx("FTP: open '%s'", filename);
 #endif
+
+ 		int i = strlen(filename);
+    warnx("filename : %s ", filename);
+    char dir[kMaxDataLength];
+    strcpy(dir,"/fs/microsd/fw/com.zubax.gnss/1.0/");
+    if(!opendir(dir) && i < kMaxDataLength){
+        while(i > 0){
+            if(filename[i] == '/'){
+                char temp[kMaxDataLength];
+                strncpy(temp, filename, i);
+                temp[i] = '\0';
+                warnx("temp : %s ", temp);
+                if(strncmp("/fs/microsd/fw/com.zubax.gnss/1.0", temp, strlen("/fs/microsd/fw/com.zubax.gnss/1.0")) == 0){
+                    if (!opendir("/fs/microsd/fw") && mkdir("/fs/microsd/fw", S_IRWXU | S_IRWXG | S_IRWXO) != 0) {
+                        warnx("mkdir failed: %s", "/fs/microsd/fw/com.zubax.gnss/1.0");
+                        return kErrFailErrno;
+                    }
+                    if(!opendir("//fs/microsd/fw/com.zubax.gnss") && mkdir("/fs/microsd/fw/com.zubax.gnss", S_IRWXU | S_IRWXG | S_IRWXO) != 0){
+                        warnx("mkdir sucess: %s", "/fs/microsd/fw/com.zubax.gnss/1.0");
+                    }
+                    if(!opendir("/fs/microsd/fw/com.zubax.gnss/1.0") && mkdir("/fs/microsd/fw/com.zubax.gnss/1.0", S_IRWXU | S_IRWXG | S_IRWXO) != 0){
+                        warnx("mkdir failed: %s", "/fs/microsd/fw/com.zubax.gnss/1.0");
+                        return kErrFailErrno;
+                    }
+                }
+                warnx("mkdir sucess fs/microsd/fw/com.zubax.gnss/1.0 %s %d" , __FILE__, __LINE__);
+                break;
+            }
+            i--;
+        }
+    }
+  warnx("mkdir sucess fs/microsd/fw/com.zubax.gnss/1.0");
 
 	uint32_t fileSize = 0;
 	struct stat st;
