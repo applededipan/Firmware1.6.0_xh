@@ -55,3 +55,67 @@
  * @group VTOL Attitude Control
 
 PARAM_DEFINE_FLOAT(VT_TRANS_P2_DUR, 0.5f);*/
+
+/**
+ * Back transition thrust
+ *
+ * Back transition thrust. 0 means disable this parameter.
+ *
+ * @unit norm
+ * @min 0.0
+ * @max 1.0
+ * @decimal 2
+ * @increment 0.1
+ * @group VTOL Attitude Control
+ */
+PARAM_DEFINE_FLOAT(VT_B_TRANS_THR, 0.0f); // apple 
+
+/**
+ * pitch angle to switch to FW. 
+ *
+ * pitch angle to switch to FW. 0 means disable this parameter and use default parameter
+ *
+ * @unit norm
+ * @min 0.0
+ * @max 90.0
+ * @decimal 2
+ * @increment 0.1
+ * @group VTOL Attitude Control
+ */
+PARAM_DEFINE_FLOAT(VT_PITCH_F_TRANS, 0.0f); // apple
+
+/**
+ * pitch angle to switch to MC 
+ *
+ * pitch angle to switch to MC. 0 means disable this parameter and use default parameter
+ *
+ * @unit norm
+ * @min 0.0
+ * @max 60.0
+ * @decimal 2
+ * @increment 0.1
+ * @group VTOL Attitude Control
+ */
+PARAM_DEFINE_FLOAT(VT_PITCH_B_TRANS, 0.0f); // apple
+
+/**
+ * Force transition to FW mode in manual and auto mode
+ *
+ * Force transition to FW mode in manual and auto mode. 0 means disable.
+ *
+ * @min 0 
+ * @max 1
+ * @group VTOL Attitude Control
+ */
+PARAM_DEFINE_INT32(VT_F_TRANS_EN, 0);
+
+/**
+ * Force transition to MC mode in manual and auto mode
+ *
+ * Force transition to MC mode in manual and auto mode. 0 means disable.
+ *
+ * @min 0 
+ * @max 1
+ * @group VTOL Attitude Control
+ */
+PARAM_DEFINE_INT32(VT_B_TRANS_EN, 0);

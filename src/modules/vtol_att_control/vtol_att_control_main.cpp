@@ -493,6 +493,11 @@ VtolAttitudeControl::is_fixed_wing_requested()
 			} else if (_manual_control_sp.transition_switch == manual_control_setpoint_s::SWITCH_POS_MIDDLE) {
 				// normal transition to fw_mode 
 				to_fw = 1; 
+				
+			} else if (_manual_control_sp.transition_switch == manual_control_setpoint_s::SWITCH_POS_OFF) {		
+				// normal transition to mc_mode
+				to_fw = 0; 
+				
 			}
 
 	} else {
