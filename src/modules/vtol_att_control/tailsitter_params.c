@@ -119,3 +119,17 @@ PARAM_DEFINE_INT32(VT_F_TRANS_EN, 0);
  * @group VTOL Attitude Control
  */
 PARAM_DEFINE_INT32(VT_B_TRANS_EN, 0);
+
+/**
+ * The proportion of VTOL rudder output
+ *
+ * The proportion of VTOL rudder output. 0 means disable this parameter.
+ *
+ * @unit norm
+ * @min 0.0
+ * @max 1.0
+ * @decimal 2
+ * @increment 0.1
+ * @group VTOL Attitude Control
+ */
+PARAM_DEFINE_FLOAT(VT_FW_YAW_SCALE, 0.0f); 

@@ -75,6 +75,7 @@ private:
 		float back_trans_pitch;         /**< pitch angle to switch to MC */
 	    int vtol_ftrans_force_en;       /**< enable skip judgement when transition to FW mode */
 		int vtol_btrans_force_en;       /**< enable skip judgement when transition to MC mode */
+		float vtol_fw_yaw_scale;     /**< VTOL yaw scale > */
 	} _params_tailsitter;
 
 	struct {
@@ -89,6 +90,7 @@ private:
 		param_t back_trans_pitch;     // apple
 		param_t vtol_ftrans_force_en; // apple
 		param_t vtol_btrans_force_en; // apple
+		param_t vtol_fw_yaw_scale;
 	} _params_handles_tailsitter;
 
 	enum vtol_mode {
