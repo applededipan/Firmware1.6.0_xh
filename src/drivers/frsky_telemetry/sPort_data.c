@@ -340,3 +340,75 @@ void sPort_send_GPS_FIX(int uart)
 	uint32_t t2 = satcount * 10 + fixtype;
 	sPort_send_data(uart, SMARTPORT_ID_DIY_GPSFIX, t2);
 }
+
+/**********************************************************************/
+//! functions below added by apple for digicam camera zoom_in_out control, obey VISCA protocol
+
+/*
+ * zoom stop
+ */
+void digicam_control_zoom_stop(int uart)
+{
+	const uint8_t zoom_stop[] = {0X81, 0X01, 0X04, 0X07, 0X00, 0XFF};
+    write(uart, zoom_stop, sizeof(zoom_stop));
+}
+
+/*
+ * zoom in
+ */
+void digicam_control_zoom_in(int uart)
+{
+	const uint8_t zoom_in[] = {0X81, 0X01, 0X04, 0X07, 0X02, 0XFF};
+    write(uart, zoom_in, sizeof(zoom_in));
+}
+
+/*
+ * zoom out
+ */
+void digicam_control_zoom_out(int uart)
+{
+	const uint8_t zoom_out[] = {0X81, 0X01, 0X04, 0X07, 0X03, 0XFF};
+    write(uart, zoom_out, sizeof(zoom_out));
+}
+
+/*
+ * zoom in with specific speed
+ * param speed: 2(slow) -- 7(fast)
+ */
+void digicam_control_zoom_vin(int uart, uint8_t speed)
+{
+    uint8_t zoom_vin[] = {0X81, 0X01, 0X04, 0X07, 0X22, 0XFF};
+	switch(speed)
+	{
+		case 2: zoom_vin[4] = 0X22; break;
+		case 3: zoom_vin[4] = 0X23; break;
+		case 4: zoom_vin[4] = 0X24; break;
+		case 5: zoom_vin[4] = 0X25; break;
+		case 6: zoom_vin[4] = 0X26; break;
+		case 7: zoom_vin[4] = 0X27; break;
+       default: zoom_vin[4] = 0X22; break;
+	}
+    write(uart, zoom_vin, sizeof(zoom_vin));
+}
+
+/*
+ * zoom out with specific speed
+ * param speed: 2(slow) -- 7(fast)
+ */
+void digicam_control_zoom_vout(int uart, uint8_t speed)
+{
+	uint8_t zoom_vout[] = {0X81, 0X01, 0X04, 0X07, 0X32, 0XFF};
+	switch(speed)
+	{
+		case 2: zoom_vout[4] = 0X32; break;
+		case 3: zoom_vout[4] = 0X33; break;
+		case 4: zoom_vout[4] = 0X34; break;
+		case 5: zoom_vout[4] = 0X35; break;
+		case 6: zoom_vout[4] = 0X36; break;
+		case 7: zoom_vout[4] = 0X37; break;
+       default: zoom_vout[4] = 0X32; break;
+	}
+    write(uart, zoom_vout, sizeof(zoom_vout));
+}
+
+/**********************************************************************/
