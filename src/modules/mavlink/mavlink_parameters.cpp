@@ -190,7 +190,7 @@ MavlinkParametersManager::handle_message(const mavlink_message_t *msg)
 					_uavcan_parameter_request_pub = orb_advertise(ORB_ID(uavcan_parameter_request), &req);
 
 				} else {
-					orb_publish(ORB_ID(uavcan_parameter_request), _uavcan_parameter_request_pub, &req);
+					//orb_publish(ORB_ID(uavcan_parameter_request), _uavcan_parameter_request_pub, &req);
 				}
 			}
 
