@@ -70,7 +70,7 @@ VtolType::VtolType(VtolAttitudeControl *att_controller) :
 	_tecs_status = _attc->get_tecs_status();
 	_land_detected = _attc->get_land_detected();
 	_params = _attc->get_params();
-
+	_ctrl_state = _attc->get_ctrl_state(); // apple 2016/11/26
 	flag_idle_mc = true;
 }
 
