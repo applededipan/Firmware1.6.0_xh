@@ -130,6 +130,7 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_transponder_report_pub(nullptr),
 	_collision_report_pub(nullptr),
 	_control_state_pub(nullptr),
+	_camera_trigger_pub(nullptr), //! apple
 	_gps_inject_data_pub(nullptr),
 	_command_ack_pub(nullptr),
 	_control_mode_sub(orb_subscribe(ORB_ID(vehicle_control_mode))),
@@ -279,6 +280,10 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		handle_message_logging_ack(msg);
 		break;
 
+	case MAVLINK_MSG_ID_CAMERA_TRIGGER:          //! apple 
+        handle_message_camera_trigger(msg);
+        break;
+		
 	default:
 		break;
 	}
@@ -350,6 +355,24 @@ MavlinkReceiver::evaluate_target_ok(int command, int target_system, int target_c
 	}
 
 	return target_ok;
+}
+
+void
+MavlinkReceiver::handle_message_camera_trigger(mavlink_message_t *msg)
+{
+	/* get camera zoom_in_out cmd */
+	mavlink_camera_trigger_t camera_trigger;
+	mavlink_msg_camera_trigger_decode(msg, &camera_trigger);
+
+	//if(camera_trigger->sysid != ) return; // not verify the source of the message, need to supplement later
+    uint32_t camera_trigger_mode = camera_trigger.seq;
+
+	if (_camera_trigger_pub == nullptr) {
+	_camera_trigger_pub = orb_advertise(ORB_ID(camera_trigger), &camera_trigger_mode);
+
+	} else {
+		orb_publish(ORB_ID(camera_trigger), _camera_trigger_pub, &camera_trigger_mode);
+	}
 }
 
 void
