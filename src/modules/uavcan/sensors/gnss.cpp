@@ -43,7 +43,10 @@
 #include <drivers/drv_hrt.h>
 #include <systemlib/err.h>
 #include <mathlib/mathlib.h>
-
+/* add time calibration 20160921 by yhb*/
+#include <px4_time.h>
+#define GNSS_EPOCH_SECS ((time_t)1234567890ULL)
+/* add end */
 const char *const UavcanGnssBridge::NAME = "gnss";
 
 UavcanGnssBridge::UavcanGnssBridge(uavcan::INode &node) :
@@ -172,7 +175,18 @@ void UavcanGnssBridge::gnss_fix_sub_cb(const uavcan::ReceivedDataStructure<uavca
 
 	report.timestamp_time_relative = 0;
 	report.time_utc_usec = uavcan::UtcTime(msg.gnss_timestamp).toUSec();	// Convert to microseconds
+	
+#ifndef NO_MKTIME
+	timespec ts;
+	ts.tv_sec = uavcan::UtcTime(msg.gnss_timestamp).toUSec()/1e6;
+	ts.tv_nsec = uavcan::UtcTime(msg.gnss_timestamp).toUSec()*1000;
+			//printf("set time:%llu\n",report.time_utc_usec);
+	if (ts.tv_sec > GNSS_EPOCH_SECS) {
+				px4_clock_settime(CLOCK_REALTIME, &ts);
+			}
+#endif
 
+	/* add end */
 	report.satellites_used = msg.sats_used;
 
 	// Using PDOP for HDOP and VDOP
