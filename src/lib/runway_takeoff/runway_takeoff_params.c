@@ -73,6 +73,11 @@ PARAM_DEFINE_INT32(RWTO_HDG, 0);
  * @increment 1
  * @group Runway Takeoff
  */
+ 
+PARAM_DEFINE_FLOAT(RWTO_MIN_THR, 0.0);  //add by ycl 20161029
+
+PARAM_DEFINE_FLOAT(RWTO_TIME_THR, 0.0); //add by ycl 20161029
+
 PARAM_DEFINE_FLOAT(RWTO_NAV_ALT, 5.0);
 
 /**

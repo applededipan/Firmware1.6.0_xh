@@ -1739,6 +1739,7 @@ FixedwingPositionControl::control_position(const math::Vector<2> &current_positi
 
 				float terrain_alt = get_terrain_altitude_takeoff(_takeoff_ground_alt, _global_pos);
 
+				_runway_takeoff.set_manual_throttle(_manual.z);
 				// update runway takeoff helper
 				_runway_takeoff.update(
 					_ctrl_state.airspeed,
