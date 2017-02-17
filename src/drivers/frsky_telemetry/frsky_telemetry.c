@@ -60,7 +60,7 @@
 #include <drivers/drv_hrt.h>
 #include <uORB/topics/sensor_baro.h>
 #include <math.h>	// NAN
-
+#include <uORB/topics/camera_trigger.h> //! apple
 #include "sPort_data.h"
 #include "frsky_data.h"
 
@@ -69,8 +69,8 @@
 static volatile bool thread_should_exit = false;
 static volatile bool thread_running = false;
 static int frsky_task;
-typedef enum { SCANNING, SPORT, DTYPE } frsky_state_t;
-static frsky_state_t frsky_state = SCANNING;
+typedef enum { SCANNING, SPORT, DTYPE, ZOOM } frsky_state_t;
+static frsky_state_t frsky_state = ZOOM;  /* default: SCANNING modified by apple */ 
 
 /* functions */
 static int sPort_open_uart(const char *uart_name, struct termios *uart_config, struct termios *uart_config_original);
@@ -196,9 +196,43 @@ static int frsky_telemetry_thread_main(int argc, char *argv[])
 	thread_running = true;
 
 	/* Main thread loop */
+	
+
+	uint32_t camera_trigger_mode = 0;
+	int camera_sub = orb_subscribe(ORB_ID(camera_trigger));
+	bool camera_updated;
+	static uint8_t sendstate = 0;
+
+	while (!thread_should_exit && frsky_state == ZOOM) {
+	   orb_check(camera_sub, &camera_updated);
+	   
+	   if(camera_updated) {
+		   orb_copy(ORB_ID(camera_trigger), camera_sub, &camera_trigger_mode);
+	   }
+
+	   /* each cmd should be sent at least two times */
+	   if (camera_trigger_mode == 0X80) {
+		   
+		 if (sendstate++ < 2) digicam_control_zoom_in(uart);
+		 else sendstate = 2;
+		 
+	   } else if (camera_trigger_mode == 0XA0) {
+		   
+		 if (sendstate++ < 2) digicam_control_zoom_out(uart);
+		 else sendstate = 2;
+		 
+	   } else if (sendstate != 0) {
+		   
+		 if (sendstate++ < 4) digicam_control_zoom_stop(uart);   
+		 else sendstate = 0;
+
+	   }
+	   usleep(50000);
+	}
+
 	char sbuf[20];
-	frsky_state = SCANNING;
-	frsky_state_t baudRate = DTYPE;
+	frsky_state = ZOOM; /* default: SCANNING modified by apple */
+	frsky_state_t baudRate = DTYPE;	
 
 	while (!thread_should_exit && frsky_state == SCANNING) {
 		/* 2 byte polling frames indicate SmartPort telemetry
@@ -632,7 +666,10 @@ int frsky_telemetry_main(int argc, char *argv[])
 			case DTYPE:
 				errx(0, "running: DTYPE");
 				break;
-
+				
+			case ZOOM:
+			    errx(0, "running: ZOOM");
+			    break;
 			}
 
 		} else {
