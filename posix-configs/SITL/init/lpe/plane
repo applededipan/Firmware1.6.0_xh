@@ -39,6 +39,12 @@ param set TRIG_DISTANCE 25.0
 param set TRIG_INTERVAL 40
 param set TRIG_ACT_TIME 10 0
 param set TRIG_INTERFACE 0
+
+param set RWTO_TKOFF 1
+param set TAKEOFF_D_P_EN 1
+param set TAKEOFF_D_P_DIS 100.0f
+param set TAKEOFF_D_P_ALT 50.0f
+
 replay tryapplyparams
 simulator start -s
 rgbledsim start
@@ -60,8 +66,8 @@ fw_att_control start
 land_detector start fixedwing
 camera_trigger start
 mixer load /dev/pwm_output0 ROMFS/sitl/mixers/plane_sitl.main.mix
-mavlink start -u 14556 -r 2000000 -t 192.168.0.252
-mavlink start -u 14557 -r 2000000 -m onboard -o 14540  -t 192.168.0.252
+mavlink start -u 14556 -r 2000000 
+mavlink start -u 14557 -r 2000000 -m onboard -o 14540  
 mavlink stream -r 80 -s POSITION_TARGET_LOCAL_NED -u 14556
 mavlink stream -r 80 -s LOCAL_POSITION_NED -u 14556
 mavlink stream -r 80 -s GLOBAL_POSITION_INT -u 14556

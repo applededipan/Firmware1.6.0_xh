@@ -93,7 +93,7 @@ public:
 	};
 
 	bool set_current_offboard_mission_index(unsigned index);
-
+	bool read_first_mission_item(mission_item_s *mission_item);
 	unsigned find_offboard_land_start();
 
 private:

@@ -148,7 +148,12 @@ Mission::on_inactive()
 		if (read_res == sizeof(mission_s)) {
 			_offboard_mission.dataman_id = mission_state.dataman_id;
 			_offboard_mission.count = mission_state.count;
-			_current_offboard_mission_index = mission_state.current_seq;
+			bool 	SET_MISSION_INDEX_INIT_flag;
+			param_get(param_find("MIS_INDEX_INIT"),&SET_MISSION_INDEX_INIT_flag);
+			if (SET_MISSION_INDEX_INIT_flag)
+					_current_offboard_mission_index = mission_state.current_seq;
+			else
+				_current_offboard_mission_index = 0;
 		}
 
 		/* On init let's check the mission, maybe there is already one available. */
@@ -1206,6 +1211,12 @@ Mission::prepare_mission_items(bool onboard, struct mission_item_s *mission_item
 	}
 
 	return first_res;
+}
+
+bool
+Mission::read_first_mission_item(mission_item_s *mission_item)
+{
+	return read_mission_item(0, 0 , mission_item);
 }
 
 bool

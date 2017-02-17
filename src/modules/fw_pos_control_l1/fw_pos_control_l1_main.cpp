@@ -102,7 +102,7 @@
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/uORB.h>
 #include <vtol_att_control/vtol_type.h>
-
+#include <uORB/topics/takeoff_dynamic_point.h>
 static int	_control_task = -1;			/**< task handle for sensor task */
 
 #define HDG_HOLD_DIST_NEXT 			3000.0f 	// initial distance of waypoint in front of plane in heading hold mode
@@ -156,6 +156,9 @@ public:
 	bool		task_running() { return _task_running; }
 
 private:
+	takeoff_dynamic_point_s             _takeoff_dynamic_point_triplet;
+	orb_advert_t    _takeoff_dynamic_point_pub;
+
 	orb_advert_t	_mavlink_log_pub;
 
 	bool		_task_should_exit;		/**< if true, sensor task should exit */
@@ -535,6 +538,8 @@ FixedwingPositionControl	*g_control = nullptr;
 
 FixedwingPositionControl::FixedwingPositionControl() :
 
+	_takeoff_dynamic_point_triplet(),
+	_takeoff_dynamic_point_pub(),
 	_mavlink_log_pub(nullptr),
 	_task_should_exit(false),
 	_task_running(false),
@@ -682,6 +687,7 @@ FixedwingPositionControl::FixedwingPositionControl() :
 
 	/* fetch initial parameter values */
 	parameters_update();
+	_takeoff_dynamic_point_pub = orb_advertise(ORB_ID(takeoff_dynamic_point), &_takeoff_dynamic_point_triplet);
 }
 
 FixedwingPositionControl::~FixedwingPositionControl()
@@ -1781,7 +1787,11 @@ FixedwingPositionControl::control_position(const math::Vector<2> &current_positi
 
 				/*warnx("yaw: %.4f, roll: %.4f, pitch: %.4f", (double)_att_sp.yaw_body,
 					(double)_att_sp.roll_body, (double)_att_sp.pitch_body);*/
-
+					if(2 == _runway_takeoff.getState()){
+                                        
+					_takeoff_dynamic_point_triplet.enable = 1;
+					orb_publish(ORB_ID(takeoff_dynamic_point), _takeoff_dynamic_point_pub, &_takeoff_dynamic_point_triplet);
+				}
 			} else {
 				/* Perform launch detection */
 				if (_launchDetector.launchDetectionEnabled() &&

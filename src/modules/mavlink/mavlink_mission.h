@@ -100,8 +100,6 @@ public:
 
 	void check_active_mission(void);
 	void send_handle_mission_item_ack(mavlink_mission_item_t wp_buff);
-	
-	void change_airspeed(float speed);
 private:
 	bool flag__1E7, flag__setting;
 	enum MAVLINK_WPM_STATES _state;					///< Current state

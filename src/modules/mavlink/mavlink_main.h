@@ -60,7 +60,7 @@
 #include <uORB/topics/mission.h>
 #include <uORB/topics/mission_result.h>
 #include <uORB/topics/telemetry_status.h>
-
+#include <uORB/topics/takeoff_dynamic_point.h>
 #include "mavlink_bridge_header.h"
 #include "mavlink_orb_subscription.h"
 #include "mavlink_stream.h"
@@ -457,6 +457,7 @@ protected:
 	Mavlink			*next;
 
 private:
+	int 		takeoff_dynamic_point_sub = 0;
 	int			_instance_id;
 
 	orb_advert_t		_mavlink_log_pub;

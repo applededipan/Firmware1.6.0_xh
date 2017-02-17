@@ -97,6 +97,7 @@ set(msg_file_names
 	servorail_status.msg
 	subsystem_info.msg
 	system_power.msg
+	takeoff_dynamic_point.msg
 	tecs_status.msg
 	telemetry_status.msg
 	test_motor.msg

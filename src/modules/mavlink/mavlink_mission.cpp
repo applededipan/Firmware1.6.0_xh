@@ -776,19 +776,6 @@ MavlinkMissionManager::handle_mission_count(const mavlink_message_t *msg)
 	}
 }
 
-void
-MavlinkMissionManager::change_airspeed(float speed)
-{
-	mavlink_mission_item_t  wp;
-	for (int i=0;i<_count;i++) {
-			wp = read_mission_item(i);	
-			if (wp.command == NAV_CMD_DO_CHANGE_SPEED) {
-				//PX4_INFO("find air speed :%f ,change speed:%f",(double)wp.param2,(double)(wp.param2 + speed));
-				if (fabs(speed) > 1e-7) 	wp.param2 += speed;
-				write_mission_item(i,wp);
-			}
-	}
-}
 
 void 
 MavlinkMissionManager::architecture_camera_trigger(void)
