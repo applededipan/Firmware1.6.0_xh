@@ -184,6 +184,9 @@ private:
 	uint8_t			_conf_reg;
 	uint8_t			_temperature_counter;
 	uint8_t			_temperature_error_count;
+	
+	uint32_t 		mag_use_id; /*0:use hmc5883 1:use uavcan mag	*/
+
 
 	/**
 	 * Initialise the automatic measurement state machine and start it.
@@ -368,7 +371,8 @@ HMC5883::HMC5883(device::Device *interface, const char *path, enum Rotation rota
 	_range_bits(0),
 	_conf_reg(0),
 	_temperature_counter(0),
-	_temperature_error_count(0)
+	_temperature_error_count(0),
+	mag_use_id(0)
 {
 	// set the device type from the interface
 	_device_id.devid_s.bus_type = _interface->get_device_bus_type();
@@ -389,6 +393,8 @@ HMC5883::HMC5883(device::Device *interface, const char *path, enum Rotation rota
 
 	// work_cancel in the dtor will explode if we don't do this...
 	memset(&_work, 0, sizeof(_work));
+	// get mag use id
+	param_get(param_find("MAG_USE_ID"), &mag_use_id);
 }
 
 HMC5883::~HMC5883()
@@ -433,9 +439,9 @@ HMC5883::init()
 
 	/* reset the device configuration */
 	reset();
-
-	_class_instance = register_class_devname(MAG_BASE_DEVICE_PATH);
-
+	if(mag_use_id == 0){
+		_class_instance = register_class_devname(MAG_BASE_DEVICE_PATH);
+	}
 	ret = OK;
 	/* sensor is ok, but not calibrated */
 	_sensor_ok = true;
@@ -1023,19 +1029,20 @@ HMC5883::collect()
 	new_report.y = ((yraw_f * _range_scale) - _scale.y_offset) * _scale.y_scale;
 	/* z remains z */
 	new_report.z = ((zraw_f * _range_scale) - _scale.z_offset) * _scale.z_scale;
+	if  (mag_use_id == 0)  {
+		if (!(_pub_blocked)) {
 
-	if (!(_pub_blocked)) {
+			if (_mag_topic != nullptr) {
+				/* publish it */
+				orb_publish(ORB_ID(sensor_mag), _mag_topic, &new_report);
 
-		if (_mag_topic != nullptr) {
-			/* publish it */
-			orb_publish(ORB_ID(sensor_mag), _mag_topic, &new_report);
+			} else {
+				_mag_topic = orb_advertise_multi(ORB_ID(sensor_mag), &new_report,
+								 &_orb_class_instance, (sensor_is_onboard) ? ORB_PRIO_HIGH : ORB_PRIO_MAX);
 
-		} else {
-			_mag_topic = orb_advertise_multi(ORB_ID(sensor_mag), &new_report,
-							 &_orb_class_instance, (sensor_is_onboard) ? ORB_PRIO_HIGH : ORB_PRIO_MAX);
-
-			if (_mag_topic == nullptr) {
-				DEVICE_DEBUG("ADVERT FAIL");
+				if (_mag_topic == nullptr) {
+					DEVICE_DEBUG("ADVERT FAIL");
+				}
 			}
 		}
 	}

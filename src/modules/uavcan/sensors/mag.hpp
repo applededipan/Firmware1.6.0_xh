@@ -56,6 +56,29 @@ public:
 private:
 	ssize_t	read(struct file *filp, char *buffer, size_t buflen);
 	int ioctl(struct file *filp, int cmd, unsigned long arg) override;
+	/**
+	 * Check the current calibration and update device status
+	 *
+	 * @return 0 if calibration is ok, 1 else
+	 */
+	int 			check_calibration();
+
+	/**
+	* Check the current scale calibration
+	*
+	* @return 0 if scale calibration is ok, 1 else
+	*/
+	int 			check_scale();
+
+	/**
+	* Check the current offset calibration
+	*
+	* @return 0 if offset calibration is ok, 1 else
+	*/
+	int 			check_offset();
+	bool			_calibrated;		/**< the calibration is valid */
+	
+	uint32_t  mag_use_id;
 
 	void mag_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::ahrs::MagneticFieldStrength> &msg);
 

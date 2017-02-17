@@ -110,6 +110,13 @@ PARAM_DEFINE_FLOAT(CAL_GYRO0_YSCALE, 1.0f);
 PARAM_DEFINE_FLOAT(CAL_GYRO0_ZSCALE, 1.0f);
 
 /**
+ * ID of Mag used
+ * @value 0 Fmu board
+ * @value 1 Gps board
+ */
+PARAM_DEFINE_INT32(MAG_USE_ID,0);
+
+/**
  * ID of Magnetometer the calibration is for.
  *
  * @group Sensor Calibration
