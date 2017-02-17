@@ -319,18 +319,4 @@ PARAM_DEFINE_FLOAT(VT_FW_MIN_ALT, 0.0f);
  */
 PARAM_DEFINE_FLOAT(VT_F_TR_OL_TM, 6.0f);
 
-/**
- * Back transition thrust
- *
- * Back transition thrust. 0 means disable this parameter.
- *
- * @unit norm
- * @min 0.0
- * @max 1.0
- * @decimal 2
- * @increment 0.01
- * @group VTOL Attitude Control
- */
-PARAM_DEFINE_FLOAT(VT_B_TRANS_THR, 0.0f); // apple 
-
 
