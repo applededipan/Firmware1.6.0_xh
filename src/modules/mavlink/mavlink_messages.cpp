@@ -1449,10 +1449,10 @@ public:
 		return MAVLINK_MSG_ID_CAMERA_FEEDBACK;
 	}
 
-    uint16_t get_id()
-    {
-        return get_id_static();
-    }
+	 uint16_t get_id()
+  	{
+   		 return get_id_static();
+	 }
 
 	static MavlinkStream *new_instance(Mavlink *mavlink)
 	{
@@ -1464,10 +1464,11 @@ public:
 		return (_feedback_time > 0) ? MAVLINK_MSG_ID_CAMERA_FEEDBACK_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES : 0;
 	}
 
-   void file_handle(mavlink_camera_feedback_t msg)
+   void file_handle(camera_feedback_s msg)
 	{
+#ifndef __PX4_POSIX
 		if(!_mavlink->get_mode()){
-		/*****************************************/
+
 					/* string to hold the path to the log */
 					char log_root[30] = "/fs/microsd";
 					char log_file_path[64] = "";
@@ -1479,13 +1480,13 @@ public:
                     time_t utc_time_sec,msec;
 
 					struct tm tt;
-					utc_time_sec = msg.time_usec / 1e6;
+					utc_time_sec = msg.timestamp / 1e6;
 					gmtime_r(&utc_time_sec, &tt);
 
 					char tstamp[22];
 					strftime(tstamp, sizeof(tstamp) - 1, "%Y/%m/%d/%H:%M:%S", &tt);
 
-					utc_time_msec = msg.time_usec / 1e3;
+					utc_time_msec = msg.timestamp / 1e3;
 					msec = utc_time_msec - utc_time_sec*1e3;
 
 					sprintf(&ms[0],".%d",msec);
@@ -1495,26 +1496,31 @@ public:
 					strftime(dstamp, sizeof(dstamp) - 1, "%Y-%m-%d",&tt);
 					sprintf(log_file_path,"%s/camera_%s.txt",log_root,dstamp);
 
-					/* create log dir */
-//					if(!opendir(log_file_path)){
-//					    mkdir_ret = mkdir(log_file_path, S_IRWXU | S_IRWXG | S_IRWXO);
-//					    printf("mkdir:%d\n",mkdir_ret);
-//					}
-//					if(!mkdir_ret){
-		//				warnx("mkdir success %d: %s", mkdir_ret,log_file_path);
-
 						struct stat buf;
-						if(::stat(log_file_path, &buf) == -1){
-							// log file not exit
-							fd = open(log_file_path, O_CREAT | O_RDWR | O_APPEND);
-							if(fd>0){
-								memset(buffer,0,sizeof(buffer));
-								// ±àºÅ           Ê±¼ä              Î³¶È        ¾­¶È        ¸ß¶È   ËÙ¶È   ºá¹ö   ¸©Ñö    Ö¸Ïò //·ÉÐÐ×ËÌ¬  ´¥·¢¸ºÔØ
-								sprintf(buffer, "%-4s         %-25s  %-15s  %-15s  %-10s  %-10s     %-10s%-10s%-5s  %-5s \r\n ",
-										"±àºÅ", "Ê±¼ä","Î³¶È", "¾­¶È", "¾ø¶Ô¸ß¶È", "Ïà¶Ô¸ß¶È", "ËÙ¶È", "ºá¹ö", "¸©Ñö", "Æ«º½");
+						if(::stat(log_file_path, &buf) == -1)
+							{
+								// log file not exit
+								fd = open(log_file_path, O_CREAT | O_RDWR | O_APPEND);
+								if(fd>0)
+								{
+									memset(buffer,0,sizeof(buffer));
+									//编号   时间  纬度  经度  绝高 相高 速度横滚俯仰指向 //飞行姿态  触发负载
+									sprintf(buffer, "%-4s\t"
+											"%-23s"
+											"%-10s\t"
+											"%-12s"
+											"%-8s\t"
+											"%-8s\t   "
+											"%-8s"
+											"%-8s"
+											"%-8s"
+											"%-8s"
+											"%-8s \r\n ",
+											"编号", "时间","纬度", "经度", "绝对高度", "相对高度", "空速","地速", "横滚", "俯仰", "偏航");
 								write(fd,&buffer[0],strlen(buffer) + 1);
 								//fsync(fd);
-							}
+
+								}
 						}else{
 							// log file ex
 							fd = open(log_file_path, O_RDWR | O_APPEND);
@@ -1522,17 +1528,15 @@ public:
 						if(fd>0){
 
 							memset(buffer,0,sizeof(buffer));
-							sprintf(&buffer[0],"\r\n %-4d  %-25s  %-15.7f  %-15.7f  %-10.2f  %-10.2f  %-5.1f  %-5.1f  %-5.1f  %-5.1f",
-									seq,tstamp,(double)(msg.lat/10000000.0),(double)(msg.lng/10000000.0),(double)msg.alt_msl,(double)msg.alt_rel,(double)msg.foc_len,(double)msg.roll,(double)msg.pitch,(double)msg.yaw);
+							sprintf(&buffer[0],"\r\n %-4d  %-25s  %-15.7f  %-15.7f  %-10.2f  %-10.2f  %-5.1f  %-5.1f  %-5.1f  %-5.1f  %-5.1f",
+										seq,tstamp,(double)(msg.lat/10000000.0),(double)(msg.lng/10000000.0),(double)msg.alt_msl,(double)msg.alt_rel,(double)msg.foc_len,(double)msg.ground_speed,(double)msg.roll,(double)msg.pitch,(double)msg.yaw);
 							write(fd,&buffer[0],strlen(buffer) + 1);
 								seq++;
-
-							//fsync(fd);
-							//printf("%s",&buffer[0]);
 					   }
 					    close(fd);
 					  }
 					/*****************************************/
+#endif
 	}
 
 private:
@@ -1570,7 +1574,7 @@ protected:
 			/* ensure that only active trigger events are sent */
 			if (feedback.timestamp > 0) {
 				mavlink_msg_camera_feedback_send_struct(_mavlink->get_channel(), &msg);
-				file_handle(msg);
+				file_handle(feedback);
 			}
 		}
 	}
@@ -2279,6 +2283,7 @@ protected:
 				msg.controls[i] = att_ctrl.control[i];
 			}
 			if(N==2){
+#ifndef __PX4_POSIX
 				uint16_t checksum=0xffff;
 				uint8_t len = sizeof(msg);
 				uint8_t buf[6+len+2];
@@ -2300,17 +2305,17 @@ protected:
 				ck[1] = (uint8_t)(checksum >> 8);
 				buf[len+6] = ck[0];                 //CKA
 				buf[len+7] = ck[1];                 //CKB
-
+#define CAMERA_ZOOM_EN /* apple: enable camera zoom_in_out via /dev/ttyS6  USART8 */
+#ifndef CAMERA_ZOOM_EN
 				const char *device_name = "/dev/ttyS6";
 				static int uart_fd = -1;
 
 				if(uart_fd < 0)
-					uart_fd = open(device_name, O_RDWR| O_NOCTTY | O_NONBLOCK);
-				if(uart_fd > 0){
-						ssize_t tmp = write(uart_fd, &buf,sizeof(buf));
-						if(tmp < 0)
-								warnx("send ttyS6 erro!");
-					}
+						uart_fd = open(device_name, O_RDWR| O_NOCTTY | O_NONBLOCK);
+				if(uart_fd > 0)
+					  write(uart_fd, &buf,sizeof(buf));
+#endif
+#endif
 //				if(uart_fd > 0)
 //           write(uart_fd, &msg.time_usec,sizeof(msg.time_usec));
 //		   	warnx("len :%d",sizeof(buf));

@@ -5,7 +5,7 @@
  *
  */
 #pragma once
-
+#ifdef __PX4_NUTTX
 #include <systemlib/err.h>
 #include <systemlib/param/param.h>
 #include <board_config.h>
@@ -28,7 +28,7 @@ public:
 
 private:
 
-	void setup();
+	void setup(int pins, int polarity);
 
 	param_t _p_pin;
 	param_t _p_polarity;
@@ -39,3 +39,4 @@ private:
 	};
 
 };
+#endif
