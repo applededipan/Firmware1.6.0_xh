@@ -2478,7 +2478,11 @@ MavlinkReceiver::receive_thread(void *arg)
 							/* this will only switch to proto version 2 if allowed in settings */
 							_mavlink->set_proto_version(2);
 						}
-
+#ifdef USE_SHIFT_ALG
+						char* m = (char*)&msg.payload64[0];
+						for(ssize_t j=0;j<msg.len;j++)
+							m[j] = ((m[j]<<4)&0xF0)|((m[j]>>4)&0x0F); 
+#endif
 						/* handle generic messages and commands */
 						handle_message(&msg);
 
