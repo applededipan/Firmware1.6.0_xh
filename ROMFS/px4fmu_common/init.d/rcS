@@ -448,17 +448,17 @@ then
 
 	# Sensors on the PWM interface bank
 	# clear pins 5 and 6
-	if param compare SENS_EN_LL40LS 1
-	then
-		set FMU_MODE pwm4
-		set AUX_MODE pwm4
-	fi
-	if param greater TRIG_MODE 0
-	then
-		#set FMU_MODE pwm4
-		#set AUX_MODE pwm4
-		camera_trigger start
-	fi
+	#if param compare SENS_EN_LL40LS 1
+	#then
+	#	set FMU_MODE pwm4
+	#	set AUX_MODE pwm4
+	#fi
+	#if param greater TRIG_MODE 0
+	#then
+	#	set FMU_MODE pwm4
+	#	set AUX_MODE pwm4
+	#	camera_trigger start
+	#fi
 
 	# If OUTPUT_MODE == none then something is wrong with setup and we shouldn't try to enable output
 	if [ $OUTPUT_MODE != none ]
@@ -621,6 +621,11 @@ then
 	#
 	if  ver hwcmp PX4FMU_V4 
 	then
+		#start camera trigger 
+		#if param greater TRIG_MODE 0
+		#then
+		camera_trigger start
+		#fi
 	else
 		# XXX We need a better way for runtime eval of shell variables,
 		# but this works for now
@@ -685,7 +690,7 @@ then
 	then
 		if uavcan start
 		then
-			uavcan start fw
+			#uavcan start fw
 		else
 			tone_alarm ${TUNE_ERR}
 		fi

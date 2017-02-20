@@ -155,7 +155,7 @@ MavlinkFTP::handle_message(const mavlink_message_t *msg)
 	//warnx("MavlinkFTP::handle_message %d %d", buf_size_1, buf_size_2);
 
 	if (msg->msgid == MAVLINK_MSG_ID_FILE_TRANSFER_PROTOCOL) {
-		mavlink_file_transfer_protocol_t ftp_request;
+		static mavlink_file_transfer_protocol_t ftp_request;
 		mavlink_msg_file_transfer_protocol_decode(msg, &ftp_request);
 
 #ifdef MAVLINK_FTP_DEBUG
