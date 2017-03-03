@@ -56,11 +56,11 @@ UavcanMagnetometerBridge::UavcanMagnetometerBridge(uavcan::INode &node) :
   	param_get(param_find("CAL_MAG0_ZSCALE"), &_scale.z_scale);
  	param_get(param_find("MAG_USE_ID"), &mag_use_id);
  	
-  if(_scale.x_scale < 0.000001f)
+  if(_scale.x_scale < 1e-7f)
 		_scale.x_scale = 1.0F;
-	if(_scale.y_scale < 0.000001f)
+	if(_scale.y_scale < 1e-7f)
 		_scale.y_scale = 1.0F;
-	if(_scale.z_scale < 0.000001f)
+	if(_scale.z_scale < 1e-7f)
 		_scale.z_scale = 1.0F;
 }
 
@@ -72,7 +72,7 @@ int UavcanMagnetometerBridge::init()
 		return res;
 	}
 
-	if  (mag_use_id ==1)  {
+	if (mag_use_id > 0) {
 		res = _sub_mag.start(MagCbBinder(this, &UavcanMagnetometerBridge::mag_sub_cb));
 
 		if (res < 0) {
