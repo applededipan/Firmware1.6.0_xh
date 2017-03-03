@@ -73,6 +73,8 @@ private:
         float vtol_btrans_thr;          // apple 2016/11/26
 		float front_trans_pitch;        /**< pitch angle to switch to FW */
 		float back_trans_pitch;         /**< pitch angle to switch to MC */
+		float vtol_thr_ftrans_max;
+		float mpc_thr_min;
 	    int vtol_ftrans_force_en;       /**< enable skip judgement when transition to FW mode */
 		int vtol_btrans_force_en;       /**< enable skip judgement when transition to MC mode */
 		float vtol_fw_yaw_scale;     /**< VTOL yaw scale > */
@@ -88,6 +90,8 @@ private:
         param_t vtol_btrans_thr;      // apple 2016/11/26
 		param_t front_trans_pitch;    // apple
 		param_t back_trans_pitch;     // apple
+		param_t vtol_thr_ftrans_max;
+		param_t mpc_thr_min;
 		param_t vtol_ftrans_force_en; // apple
 		param_t vtol_btrans_force_en; // apple
 		param_t vtol_fw_yaw_scale;
@@ -114,6 +118,7 @@ private:
 	float _thrust_transition_start; // throttle value when we start the front transition
 	float _yaw_transition;	// yaw angle in which transition will take place
 	float _pitch_transition_start;  // pitch angle at the start of transition (tailsitter)
+	float _roll_transition_start;   // roll angle at the start of transition (tailsitter)
 
 
 	/** should this anouncement stay? **/

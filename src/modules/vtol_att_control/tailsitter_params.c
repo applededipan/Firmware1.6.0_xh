@@ -133,3 +133,14 @@ PARAM_DEFINE_INT32(VT_B_TRANS_EN, 0);
  * @group VTOL Attitude Control
  */
 PARAM_DEFINE_FLOAT(VT_FW_YAW_SCALE, 0.0f); 
+
+/**
+ * Throttle during front transition
+ *
+ * @unit norm
+ * @min 0.0
+ * @max 1.0
+ * @increment 0.1
+ * @group VTOL Attitude Control
+ */
+PARAM_DEFINE_FLOAT(VT_THR_TRANS_MAX, 0.25f);
