@@ -630,6 +630,7 @@ Mission::set_mission_items()
 			_mission_item.nav_cmd = NAV_CMD_WAYPOINT;
 			/* ignore yaw here, otherwise it might yaw before heading_sp_update takes over */
 			_mission_item.yaw = NAN;
+			_mission_item.time_inside = 0.0f;
 		}
 
 		/* if we just did a VTOL takeoff, prepare transition */
