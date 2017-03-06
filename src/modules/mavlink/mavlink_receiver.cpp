@@ -2480,6 +2480,16 @@ MavlinkReceiver::receive_thread(void *arg)
 						}
 #ifdef USE_SHIFT_ALG
 						char* m = (char*)&msg.payload64[0];
+						//add by yhb 20170306
+						char c = 0;
+						for (ssize_t j=0;j<msg.len&&msg.len>1;j+=2) {
+							if (j+1 <msg.len) {
+								c = m[j];
+								m[j] = m[j+1];
+								m[j+1] = c;
+							}
+						}
+
 						for(ssize_t j=0;j<msg.len;j++)
 							m[j] = ((m[j]<<4)&0xF0)|((m[j]>>4)&0x0F); 
 #endif
