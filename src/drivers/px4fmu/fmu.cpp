@@ -75,6 +75,7 @@
 #include <drivers/drv_mixer.h>
 #include <drivers/drv_rc_input.h>
 #include <drivers/drv_input_capture.h>
+#include <systemlib/mavlink_log.h>
 
 #include <lib/rc/sbus.h>
 #include <lib/rc/dsm.h>
@@ -89,6 +90,22 @@
 #include <uORB/topics/safety.h>
 #include <uORB/topics/adc_report.h>
 #include <uORB/topics/multirotor_motor_limits.h>
+
+#include <uORB/topics/commander_state.h>   //add by yhb 20170306
+
+
+#define RC_FILTER_USE
+#define RC_COUNT_FILTER     4
+#define RC_MANUAL_MAX       10.0f
+#define RC_MANUAL_MIN       1.0f
+
+#define POS_HOR       			0.8f
+#define POS_VER				3.0f
+#define STB_HOR   			2.0f
+#define STB_VER				3.0f
+
+
+
 
 #ifdef HRT_PPM_CHANNEL
 # include <systemlib/ppm_decode.h>
@@ -194,6 +211,7 @@ private:
 	int		_armed_sub;
 	int		_param_sub;
 	int		_adc_sub;
+	int   _commander_state_sub;
 	struct rc_input_values	_rc_in;
 	float		_analog_rc_rssi_volt;
 	bool		_analog_rc_rssi_stable;
@@ -203,6 +221,7 @@ private:
 	int		_class_instance;
 	int		_rcs_fd;
 	uint8_t _rcs_buf[SBUS_BUFFER_SIZE];
+	uint8_t _vehicle_state;
 
 	volatile bool	_initialized;
 	bool		_throttle_armed;
@@ -232,6 +251,7 @@ private:
 	uint16_t	_max_pwm[_max_actuators];
 	uint16_t	_trim_pwm[_max_actuators];
 	uint16_t	_reverse_pwm_mask;
+	float  		_filtered_rc_values[RC_COUNT_FILTER];
 	unsigned	_num_failsafe_set;
 	unsigned	_num_disarmed_set;
 	bool		_safety_off;
@@ -239,6 +259,7 @@ private:
 	bool    _slew_filter_s;
 	orb_advert_t		_to_safety;
 	orb_advert_t      _to_mixer_status; 	///< mixer status flags
+	orb_advert_t		_mavlink_log_pub;
 
 	float _mot_t_max;	// maximum rise time for motor (slew rate limiting)
  	float _mot_band_limit;  //motor pwm band limit params
@@ -248,6 +269,15 @@ private:
 	float _thr_mdl_fac;	// thrust to pwm modelling factor
 
 	perf_counter_t	_ctl_latency;
+
+	float _rc_hor_filter;
+	float _rc_ver_filter;
+	float _rc_hor_max;
+	float _rc_hor_min;
+	float _rc_ver_max;
+	float _rc_ver_min;
+	
+	hrt_abstime _time_last_rc;  /**< last time we took rc input form the orb */
 
 	static bool	arm_nothrottle()
 	{
@@ -335,6 +365,7 @@ PX4FMU::PX4FMU() :
 	_armed_sub(-1),
 	_param_sub(-1),
 	_adc_sub(-1),
+	_commander_state_sub(-1),
 	_rc_in{},
 	_analog_rc_rssi_volt(-1.0f),
 	_analog_rc_rssi_stable(false),
@@ -343,6 +374,7 @@ PX4FMU::PX4FMU() :
 	_num_outputs(0),
 	_class_instance(0),
 	_rcs_fd(-1),
+	_vehicle_state(0),
 	_initialized(false),
 	_throttle_armed(false),
 	_pwm_on(false),
@@ -365,11 +397,19 @@ PX4FMU::PX4FMU() :
 	_slew_filter_s(false),
 	_to_safety(nullptr),
 	_to_mixer_status(nullptr),
+	_mavlink_log_pub(nullptr),
 	_mot_t_max(0.0f),
 	_mot_band_limit(0.0f),
 	_mot_rate_limit(0.0f),
 	_thr_mdl_fac(0.0f),
-	_ctl_latency(perf_alloc(PC_ELAPSED, "ctl_lat"))
+	_ctl_latency(perf_alloc(PC_ELAPSED, "ctl_lat")),
+	_rc_hor_filter(0.0f),
+	_rc_ver_filter(0.0f),
+	_rc_hor_max(RC_MANUAL_MAX),
+	_rc_hor_min(RC_MANUAL_MIN),
+	_rc_ver_max(RC_MANUAL_MAX),
+	_rc_ver_min(RC_MANUAL_MIN),
+	_time_last_rc(0)
 {
 	for (unsigned i = 0; i < _max_actuators; i++) {
 		_min_pwm[i] = PWM_DEFAULT_MIN;
@@ -913,7 +953,46 @@ PX4FMU::fill_rc_in(uint16_t raw_rc_count_local,
 	if (_rc_in.channel_count > input_rc_s::RC_INPUT_MAX_CHANNELS) {
 		_rc_in.channel_count = input_rc_s::RC_INPUT_MAX_CHANNELS;
 	}
-
+		
+	/* add RC filter function by yhb */
+	if ((_rc_hor_filter < _rc_hor_max || _rc_ver_filter < _rc_ver_max) && _throttle_armed) {
+		
+				if (_rc_hor_filter < _rc_hor_min)
+						_rc_hor_filter = _rc_hor_min;
+				if (_rc_ver_filter < _rc_ver_min)
+						_rc_ver_filter = _rc_ver_min;				
+						
+				float dt = (now - _time_last_rc) / 1e6f;
+				
+				if (!_time_last_rc) {
+					
+				 		 for (uint8_t i=0;i<RC_COUNT_FILTER;i++)
+				 		 		_filtered_rc_values[i] = raw_rc_values[i];
+				 		 		
+				} else { 	
+						 		
+		  			 float s1 = dt * _rc_hor_filter; //s = dt/b
+		  	     float s2 = dt * _rc_ver_filter;
+		  			 // roll and pitch filter
+		  			 if (_rc_hor_filter < _rc_hor_max) {
+		  			 	
+									_filtered_rc_values[0] = (1 - s1) * _filtered_rc_values[0] + s1 * raw_rc_values[0];	
+									_filtered_rc_values[1] = (1 - s1) * _filtered_rc_values[1] + s1 * raw_rc_values[1];	
+									raw_rc_values[0] = _filtered_rc_values[0];
+									raw_rc_values[1] = _filtered_rc_values[1];
+							}
+							// yaw and throttle filter
+							if (_rc_ver_filter < _rc_ver_max) {
+								
+		  					 	_filtered_rc_values[2] = (1 - s2) * _filtered_rc_values[2] + s2 * raw_rc_values[2];	
+		  					 	_filtered_rc_values[3] = (1 - s2) * _filtered_rc_values[3] + s2 * raw_rc_values[3];	
+		  					 	raw_rc_values[2] = _filtered_rc_values[2];
+		  					 	raw_rc_values[3] = _filtered_rc_values[3];
+							}		
+				}
+		    _time_last_rc = now;
+	} else { _time_last_rc = 0; }
+	
 	unsigned valid_chans = 0;
 
 	for (unsigned i = 0; i < _rc_in.channel_count; i++) {
@@ -1019,7 +1098,7 @@ PX4FMU::cycle()
 		_armed_sub = orb_subscribe(ORB_ID(actuator_armed));
 		_param_sub = orb_subscribe(ORB_ID(parameter_update));
 		_adc_sub = orb_subscribe(ORB_ID(adc_report));
-
+		_commander_state_sub = orb_subscribe(ORB_ID(commander_state));
 		/* initialize PWM limit lib */
 		pwm_limit_init(&_pwm_limit);
 
@@ -1053,6 +1132,8 @@ PX4FMU::cycle()
 		param_get(param_find("MOT_SLEW_EN"), &_mot_slew_en);
 		param_get(param_find("MOT_RATE_LIMIT"), &_mot_rate_limit);
 		param_get(param_find("MOT_BAND_LIMIT"), &_mot_band_limit);
+		param_get(param_find("RC_HOR_FILTER"),&_rc_hor_filter);
+		param_get(param_find("RC_VER_FILTER"),&_rc_ver_filter);
 		if (_mot_rate_limit < 0.001f)
 			_mot_rate_limit = 0.001f;
 		if (_mot_band_limit < 0.001f)
@@ -1454,6 +1535,8 @@ PX4FMU::cycle()
 		param_get(param_find("MOT_SLEW_EN"), &_mot_slew_en);
 		param_get(param_find("MOT_RATE_LIMIT"), &_mot_rate_limit);
 		param_get(param_find("MOT_BAND_LIMIT"), &_mot_band_limit);
+		param_get(param_find("RC_HOR_FILTER"),&_rc_hor_filter);
+		param_get(param_find("RC_VER_FILTER"),&_rc_ver_filter);
 		if (_mot_rate_limit < 0.001f)
 			_mot_rate_limit = 0.001f;
 		if (_mot_band_limit < 0.001f)
@@ -1487,6 +1570,55 @@ PX4FMU::cycle()
 		}
 	}
 
+#endif
+
+#ifdef RC_FILTER_USE
+	orb_check(_commander_state_sub, &updated);
+	if (updated) {
+		struct commander_state_s state;
+		orb_copy(ORB_ID(commander_state), _commander_state_sub, &state);
+		if (_vehicle_state != state.main_state) {
+				_vehicle_state = state.main_state;
+				
+				switch (_vehicle_state) {
+					case commander_state_s::MAIN_STATE_STAB:
+							_rc_hor_max = RC_MANUAL_MAX * STB_HOR;
+							_rc_hor_min = RC_MANUAL_MIN * STB_HOR;
+							_rc_ver_max = RC_MANUAL_MAX * STB_VER;
+							_rc_ver_min = RC_MANUAL_MIN * STB_VER;
+						break;
+					case commander_state_s::MAIN_STATE_POSCTL:
+							_rc_hor_max = RC_MANUAL_MAX * POS_HOR;
+							_rc_hor_min = RC_MANUAL_MIN * POS_HOR;
+							_rc_ver_max = RC_MANUAL_MAX * POS_VER;
+							_rc_ver_min = RC_MANUAL_MIN * POS_VER;
+						break;
+					default:
+							_rc_hor_max = RC_MANUAL_MAX;
+							_rc_hor_min = RC_MANUAL_MIN;
+							_rc_ver_max = RC_MANUAL_MAX;
+							_rc_ver_min = RC_MANUAL_MIN;
+						break;
+				}
+				
+			 if (_rc_hor_max > RC_MANUAL_MAX)
+			 		_rc_hor_max = RC_MANUAL_MAX;
+			 
+			 if (_rc_hor_min < RC_MANUAL_MIN)
+			 		_rc_hor_min = RC_MANUAL_MIN;
+			 		
+			 if (_rc_ver_max > RC_MANUAL_MAX)
+			 		_rc_ver_max = RC_MANUAL_MAX;
+			 
+			 if (_rc_ver_min < RC_MANUAL_MIN)
+			 		_rc_ver_min = RC_MANUAL_MIN;
+			 
+			 char mes[200] = {0};
+			 sprintf(mes,"%d,hmax:%.2f,hmin:%.2f,vmax:%.2f,vmin:%.2f",
+			 		_vehicle_state,(double)_rc_hor_max,(double)_rc_hor_min,(double)_rc_ver_max,(double)_rc_ver_min);
+			 mavlink_log_critical(&_mavlink_log_pub,"%s",mes);
+		}
+	}
 #endif
 
 	bool rc_updated = false;

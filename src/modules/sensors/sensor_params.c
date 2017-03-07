@@ -3371,7 +3371,7 @@ PARAM_DEFINE_FLOAT(MOT_SLEW_MAX, 0.0f);
 
 
 /**
- * motor limit enable.
+ * motor wave slope limit function enable.
  *
  * @min 0
  * @max 1
@@ -3381,19 +3381,46 @@ PARAM_DEFINE_INT32(MOT_SLEW_EN, 0);
 
 
 /**
- * motor boand limit,5%,10%,etc.
- *
+ * motor band limit,0.5,1.0,etc.
+ * 
+ * limit(xt,yt-1 - b,yt+1 + b)
+ * 
+ * params b
+ * 
  * @min 0
- * @max 1
+ * @max 1.0
  * @group PWM Outputs
  */
 PARAM_DEFINE_FLOAT(MOT_BAND_LIMIT, 0.1f);
 
 /**
- * moter rate limit,5%,10%,etc.
+ * moter rate limit,0.5,1.0,etc.
+ *
+ * s = r*dt/b
+ * yt = (1-s)*yt-1 + s*xt
+ *
+ * params r
  *
  * @min 0
- * @max 1
+ * @max 1.0
  * @group PWM Outputs
  */
 PARAM_DEFINE_FLOAT(MOT_RATE_LIMIT, 0.1f);
+
+/**
+ * RC horizontal filter.
+ *
+ * @min 1
+ * @max 10.0
+ * @group RC
+ */
+PARAM_DEFINE_FLOAT(RC_HOR_FILTER, 1.0f);
+
+/**
+ * RC Vertical filter.
+ *
+ * @min 1
+ * @max 10.0
+ * @group RC
+ */
+PARAM_DEFINE_FLOAT(RC_VER_FILTER, 1.0f);
