@@ -231,6 +231,7 @@ public:
 	static float		get_time_inside(struct mission_item_s &item) { return (item.nav_cmd == NAV_CMD_TAKEOFF) ? 0.0f : item.time_inside; }
 
 private:
+	int   vtol_type;					/**< VTOL type: 0 = tailsitter, 1 = tiltrotor */ //apple20170310
 	bool  takeoff_d_p_enable;
 	float takeoff_d_p_distance;
 	float takeoff_d_p_climb_alt;
@@ -399,7 +400,20 @@ private:
 	/* this class has ptr data members, so it should not be copied,
 	 * consequently the copy constructors are private.
 	 */
-	Navigator(const Navigator &);
-	Navigator operator=(const Navigator &);
+	Navigator(const Navigator&);
+	Navigator operator=(const Navigator&);
+
+	/* 
+	* get rotation matrix from euler angles
+	*/
+	void		dcm_from_euler(float data[][3], float pitch, float roll, float yaw);
+
+
+
+	/*
+	 * get euler angles from rotation matrix
+	 */
+	void dcm_to_euler(float *pitch, float *roll, float *yaw, float data[][3]);
+	
 };
 #endif

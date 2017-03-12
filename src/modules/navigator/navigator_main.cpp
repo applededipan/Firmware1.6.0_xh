@@ -179,6 +179,7 @@ Navigator::Navigator() :
 	_navigation_mode_array[9] = &_follow_target;
 
 	updateParams();
+	param_get(param_find("VT_TYPE"), &vtol_type);
 	param_get(param_find("TAKEOFF_D_P_EN"),&takeoff_d_p_enable);
 	param_get(param_find("TAKEOFF_D_P_DIS"),&takeoff_d_p_distance);
 	param_get(param_find("TAKEOFF_D_P_ALT"),&takeoff_d_p_climb_alt);
@@ -400,6 +401,7 @@ Navigator::task_main()
 		if (updated) {
 			params_update();
 			updateParams();
+			param_get(param_find("VT_TYPE"),&vtol_type);
 			param_get(param_find("TAKEOFF_D_P_EN"),&takeoff_d_p_enable);
 			param_get(param_find("TAKEOFF_D_P_DIS"),&takeoff_d_p_distance);
 			param_get(param_find("TAKEOFF_D_P_ALT"),&takeoff_d_p_climb_alt);
@@ -736,9 +738,59 @@ Navigator::task_main()
 						if ((timestamp_now - timestamp_break) >= 1/*&& (timestamp_now - timestamp_break) < 10000000000*/)	{
 							timestamp_break = timestamp_now ;
 							matrix::Eulerf euler = matrix::Quatf(att.q);
+
+							float roll = euler.phi();
+							float pitch = euler.theta();
 							float yaw = euler.psi();
-							waypoint_from_heading_and_distance( _home_pos.lat , _home_pos.lon, yaw  , takeoff_d_p_distance,
-									&lat,&lon);
+
+							if (_vstatus.is_vtol && vtol_type == 0) {
+							
+								float pitchTemp =  pitch;
+								float rollTemp  =  roll;
+								float yawTemp   =  yaw;
+
+								if (!_vstatus.in_transition_mode && _vstatus.is_rotary_wing) {
+									// _msg.vtol_state = MAV_VTOL_STATE_MC;
+									// else if(mavData.sysStatus.vtolState == MAV_VTOL_STATE_MC)
+									// mc mode
+									roll  = rollTemp;
+									pitch = pitchTemp;
+									yaw   = (yawTemp < 0.0f) ? yawTemp +  2.0f * 3.14f : yawTemp;
+									
+								} else if (!_vstatus.in_transition_mode) {
+									// _msg.vtol_state = MAV_VTOL_STATE_FW;
+									// if(_vstatus.vtolState == MAV_VTOL_STATE_FW)
+									// fw mode
+									float Me[3][3] = {0.0f}, Him[3][3] = {0.0f};
+									dcm_from_euler(Me, pitchTemp, rollTemp, yawTemp);
+									dcm_from_euler(Him, 1.57f, 0.0f, 0.0f);
+
+									float self[3][3] = {0.0f}, other[3][3] = {0.0f}, res[3][3] = {0.0f};
+									memcpy(self, Me, sizeof(Me));
+									memcpy(other, (Him), sizeof(Him));
+									memset(res, 0, sizeof(res));
+
+									for (uint8_t i = 0; i < 3; i++) {
+										for (uint8_t k = 0; k < 3; k++) {
+											for (uint8_t j = 0; j < 3; j++) {
+												res[i][k] += self[i][j] * other[j][k];
+											}
+										}
+									}
+									
+									dcm_to_euler(&pitchTemp, &rollTemp, &yawTemp, res);
+									pitch = pitchTemp;
+									roll  = rollTemp;
+									yaw   = (yawTemp < 0.0f) ? yawTemp + 2.0f * 3.14f : yawTemp;
+								
+								} else {
+									roll  = rollTemp;
+									pitch = pitchTemp;
+									yaw   = (yawTemp < 0.0f) ? yawTemp + 2.0f * 3.14f : yawTemp;
+								}
+							}
+
+							waypoint_from_heading_and_distance(_home_pos.lat, _home_pos.lon, yaw, takeoff_d_p_distance, &lat, &lon);
 
 							_pos_sp_triplet.current.lat = lat;
 							_pos_sp_triplet.current.lon = lon;
@@ -1111,5 +1163,45 @@ Navigator::set_mission_failure(const char *reason)
 		_mission_result.mission_failure = true;
 		set_mission_result_updated();
 		mavlink_log_critical(&_mavlink_log_pub, "%s", reason);
+	}
+}
+
+void 
+Navigator::dcm_from_euler(float data[][3], float pitch, float roll, float yaw) {
+	
+	float cp = cosf(pitch);
+	float sp = sinf(pitch);
+	float sr = sinf(roll);
+	float cr = cosf(roll);
+	float sy = sinf(yaw);
+	float cy = cosf(yaw);
+
+	data[0][0] = cp * cy;
+	data[0][1] = (sr * sp * cy) - (cr * sy);
+	data[0][2] = (cr * sp * cy) + (sr * sy);
+	data[1][0] = cp * sy;
+	data[1][1] = (sr * sp * sy) + (cr * cy);
+	data[1][2] = (cr * sp * sy) - (sr * cy);
+	data[2][0] = -sp;
+	data[2][1] = sr * cp;
+	data[2][2] = cr * cp;
+}
+
+void 
+Navigator::dcm_to_euler(float *pitch, float *roll, float *yaw, float data[][3]) {
+
+	*pitch = asinf(-data[2][0]);
+
+	if (fabsf(*pitch - 1.57f) < 1.0e-3f) {
+		*roll = 0.0f;
+		*yaw = atan2f(data[1][2] - data[0][1], data[0][2] + data[1][1]) + *roll;
+		
+	} else if(fabsf(*pitch + 1.57f) < 1.0e-3f) {
+		*roll = 0.0f;
+		*yaw = atan2f(data[1][2] - data[0][1], data[0][2] + data[1][1]) - *roll;
+		
+	} else {
+		*roll = atan2f(data[2][1], data[2][2]);
+		*yaw = atan2f(data[1][0], data[0][0]);
 	}
 }
