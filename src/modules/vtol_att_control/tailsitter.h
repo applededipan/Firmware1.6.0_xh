@@ -70,12 +70,13 @@ private:
 		float airspeed_trans;			/**< airspeed at which we switch to fw mode after transition */
 		float airspeed_blend_start;		/**< airspeed at which we start blending mc/fw controls */
 		int elevons_mc_lock;			/**< lock elevons in multicopter mode */
-        float vtol_btrans_thr;          // apple 2016/11/26
+    float vtol_btrans_thr;          // apple 2016/11/26
 		float front_trans_pitch;        /**< pitch angle to switch to FW */
 		float back_trans_pitch;         /**< pitch angle to switch to MC */
-	    int vtol_ftrans_force_en;       /**< enable skip judgement when transition to FW mode */
+	  int vtol_ftrans_force_en;       /**< enable skip judgement when transition to FW mode */
 		int vtol_btrans_force_en;       /**< enable skip judgement when transition to MC mode */
 		float vtol_fw_yaw_scale;     /**< VTOL yaw scale > */
+		float vtol_thr_ftrans_max;
 	} _params_tailsitter;
 
 	struct {
@@ -85,12 +86,13 @@ private:
 		param_t airspeed_trans;
 		param_t airspeed_blend_start;
 		param_t elevons_mc_lock;
-        param_t vtol_btrans_thr;      // apple 2016/11/26
+    param_t vtol_btrans_thr;      // apple 2016/11/26
 		param_t front_trans_pitch;    // apple
 		param_t back_trans_pitch;     // apple
 		param_t vtol_ftrans_force_en; // apple
 		param_t vtol_btrans_force_en; // apple
 		param_t vtol_fw_yaw_scale;
+		param_t vtol_thr_ftrans_max;
 	} _params_handles_tailsitter;
 
 	enum vtol_mode {

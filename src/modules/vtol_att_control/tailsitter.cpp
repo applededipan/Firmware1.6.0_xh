@@ -73,12 +73,13 @@ Tailsitter::Tailsitter(VtolAttitudeControl *attc) :
 	_params_handles_tailsitter.airspeed_trans = param_find("VT_ARSP_TRANS");
 	_params_handles_tailsitter.airspeed_blend_start = param_find("VT_ARSP_BLEND");
 	_params_handles_tailsitter.elevons_mc_lock = param_find("VT_ELEV_MC_LOCK");
-    _params_handles_tailsitter.vtol_btrans_thr = param_find("VT_B_TRANS_THR"); // apple
+    	_params_handles_tailsitter.vtol_btrans_thr = param_find("VT_B_TRANS_THR"); // apple
 	_params_handles_tailsitter.front_trans_pitch = param_find("VT_PITCH_F_TRANS"); // apple
-    _params_handles_tailsitter.back_trans_pitch = param_find("VT_PITCH_B_TRANS");  // apple
+    	_params_handles_tailsitter.back_trans_pitch = param_find("VT_PITCH_B_TRANS");  // apple
 	_params_handles_tailsitter.vtol_ftrans_force_en = param_find("VT_F_TRANS_EN");
 	_params_handles_tailsitter.vtol_btrans_force_en = param_find("VT_B_TRANS_EN");
 	_params_handles_tailsitter.vtol_fw_yaw_scale = param_find("VT_FW_YAW_SCALE");
+	_params_handles_tailsitter.vtol_thr_ftrans_max = param_find("VT_THR_TRANS_MAX");
 }
 
 Tailsitter::~Tailsitter()
@@ -126,7 +127,10 @@ Tailsitter::parameters_update()
 	v = math::constrain(v, 0.0f, 60.0f);
 	_params_tailsitter.back_trans_pitch = v * 0.01745f;
 	
-	
+	/* vtol front transition thr max */
+	param_get(_params_handles_tailsitter.vtol_thr_ftrans_max, &v);
+	_params_tailsitter.vtol_thr_ftrans_max = math::constrain(v, 0.0f, 1.0f);
+
 	/* vtol fw motor differential steering scale*/
 	param_get(_params_handles_tailsitter.vtol_fw_yaw_scale, &v);
 	v = math::constrain(v, 0.0f, 1.0f);
@@ -314,10 +318,10 @@ void Tailsitter::update_transition_state()
 
 		/** create time dependant throttle signal higher than  in MC and growing untill  P2 switch speed reached */
 		if (_ctrl_state->airspeed <= _params_tailsitter.airspeed_trans) {
-			_thrust_transition = _thrust_transition_start + (fabsf(THROTTLE_TRANSITION_MAX * _thrust_transition_start) *
+			_thrust_transition = _thrust_transition_start + (fabsf(_params_tailsitter.vtol_thr_ftrans_max * _thrust_transition_start) *
 					     (float)hrt_elapsed_time(&_vtol_schedule.transition_start) / (_params_tailsitter.front_trans_dur * 1000000.0f));
 			_thrust_transition = math::constrain(_thrust_transition, _thrust_transition_start,
-							     (1.0f + THROTTLE_TRANSITION_MAX) * _thrust_transition_start);
+							     (1.0f + _params_tailsitter.vtol_thr_ftrans_max) * _thrust_transition_start);
 			_v_att_sp->thrust = _thrust_transition;
 		}
 
