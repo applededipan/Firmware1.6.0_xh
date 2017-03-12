@@ -931,7 +931,7 @@ protected:
 	}
 };
 
-
+static float _groudspeed;
 class MavlinkStreamVFRHUD : public MavlinkStream
 {
 public:
@@ -1026,6 +1026,7 @@ protected:
 			msg.groundspeed = sqrtf(pos.vel_n * pos.vel_n + pos.vel_e * pos.vel_e);
 			msg.heading = _wrap_2pi(euler.psi()) * M_RAD_TO_DEG_F;
 			msg.throttle = armed.armed ? act.control[3] * 100.0f : 0.0f;
+			_groudspeed = msg.groundspeed;
 
 			if (_pos_time > 0) {
 				/* use global estimate */
@@ -1511,12 +1512,12 @@ public:
 											"%-12s"
 											"%-8s\t"
 											"%-8s\t   "
-											"%-8s"
+//											"%-8s"
 											"%-8s"
 											"%-8s"
 											"%-8s"
 											"%-8s \r\n ",
-											"编号", "时间","纬度", "经度", "绝对高度", "相对高度", "空速","地速", "横滚", "俯仰", "偏航");
+											"编号", "时间","纬度", "经度", "绝对高度", "相对高度","地速", "横滚", "俯仰", "偏航");
 								write(fd,&buffer[0],strlen(buffer) + 1);
 								//fsync(fd);
 
@@ -1528,8 +1529,8 @@ public:
 						if(fd>0){
 
 							memset(buffer,0,sizeof(buffer));
-							sprintf(&buffer[0],"\r\n %-4d  %-25s  %-15.7f  %-15.7f  %-10.2f  %-10.2f  %-5.1f  %-5.1f  %-5.1f  %-5.1f  %-5.1f",
-										seq,tstamp,(double)(msg.lat/10000000.0),(double)(msg.lng/10000000.0),(double)msg.alt_msl,(double)msg.alt_rel,(double)msg.foc_len,(double)msg.ground_speed,(double)msg.roll,(double)msg.pitch,(double)msg.yaw);
+							sprintf(&buffer[0],"\r\n %-4d  %-25s  %-15.7f  %-15.7f  %-10.2f  %-10.2f   %-5.1f  %-5.1f  %-5.1f  %-5.1f",
+										seq,tstamp,(double)(msg.lat/10000000.0),(double)(msg.lng/10000000.0),(double)msg.alt_msl,(double)msg.alt_rel,/*(double)msg.foc_len,*/(double)_groudspeed,(double)msg.roll,(double)msg.pitch,(double)msg.yaw);
 							write(fd,&buffer[0],strlen(buffer) + 1);
 								seq++;
 					   }
