@@ -3397,3 +3397,21 @@ PARAM_DEFINE_FLOAT(MOT_BAND_LIMIT, 0.1f);
  * @group PWM Outputs
  */
 PARAM_DEFINE_FLOAT(MOT_RATE_LIMIT, 0.1f);
+
+/**
+ * RC horizontal filter.
+ *
+ * @min 0
+ * @max 10.0
+ * @group RC
+ */
+PARAM_DEFINE_FLOAT(RC_HOR_FILTER, 4.0f);
+
+/**
+ * RC Vertical filter.
+ *
+ * @min 0
+ * @max 10.0
+ * @group RC
+ */
+PARAM_DEFINE_FLOAT(RC_VER_FILTER, 5.0f);

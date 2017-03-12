@@ -89,6 +89,22 @@
 #include <uORB/topics/safety.h>
 #include <uORB/topics/adc_report.h>
 #include <uORB/topics/multirotor_motor_limits.h>
+#include <uORB/topics/commander_state.h>
+
+
+#define RC_FILTER_USE
+#define RC_COUNT_FILTER     4
+#define RC_MANUAL_MAX       10.0f
+#define RC_MANUAL_MIN       0.01f
+
+#define POS_HOR_R       0.52f
+#define POS_HOR_B 			0.8f
+#define POS_VER_R				0.7f
+#define POS_VER_B				3.0f
+#define STB_HOR_R   		0.6f
+#define STB_HOR_B 			2.0f
+#define STB_VER_R				0.7f
+#define STB_VER_B				3.0f
 
 #ifdef HRT_PPM_CHANNEL
 # include <systemlib/ppm_decode.h>
@@ -194,6 +210,7 @@ private:
 	int		_armed_sub;
 	int		_param_sub;
 	int		_adc_sub;
+	int   _commander_state_sub;
 	struct rc_input_values	_rc_in;
 	float		_analog_rc_rssi_volt;
 	bool		_analog_rc_rssi_stable;
@@ -203,7 +220,7 @@ private:
 	int		_class_instance;
 	int		_rcs_fd;
 	uint8_t _rcs_buf[SBUS_BUFFER_SIZE];
-
+	uint8_t _vehicle_state;
 	volatile bool	_initialized;
 	bool		_throttle_armed;
 	bool		_pwm_on;
@@ -232,6 +249,7 @@ private:
 	uint16_t	_max_pwm[_max_actuators];
 	uint16_t	_trim_pwm[_max_actuators];
 	uint16_t	_reverse_pwm_mask;
+	float  		_filtered_rc_values[RC_COUNT_FILTER];
 	unsigned	_num_failsafe_set;
 	unsigned	_num_disarmed_set;
 	bool		_safety_off;
@@ -244,11 +262,14 @@ private:
  	float _mot_band_limit;  //motor pwm band limit params
 	float _mot_rate_limit;  //motor pwm rate limit params
 	float	_filter_pwm[_max_actuators];
-	
+
+	float _rc_hor_filter;
+	float _rc_ver_filter;
 	float _thr_mdl_fac;	// thrust to pwm modelling factor
 
 	perf_counter_t	_ctl_latency;
 
+	hrt_abstime _time_last_rc;  /**< last time we took rc input form the orb */
 	static bool	arm_nothrottle()
 	{
 		return ((_armed.prearmed && !_armed.armed) || _armed.in_esc_calibration_mode);
@@ -335,6 +356,7 @@ PX4FMU::PX4FMU() :
 	_armed_sub(-1),
 	_param_sub(-1),
 	_adc_sub(-1),
+	_commander_state_sub(-1),
 	_rc_in{},
 	_analog_rc_rssi_volt(-1.0f),
 	_analog_rc_rssi_stable(false),
@@ -343,6 +365,7 @@ PX4FMU::PX4FMU() :
 	_num_outputs(0),
 	_class_instance(0),
 	_rcs_fd(-1),
+	_vehicle_state(0),
 	_initialized(false),
 	_throttle_armed(false),
 	_pwm_on(false),
@@ -368,8 +391,11 @@ PX4FMU::PX4FMU() :
 	_mot_t_max(0.0f),
 	_mot_band_limit(0.0f),
 	_mot_rate_limit(0.0f),
+	_rc_hor_filter(0.1f),
+	_rc_ver_filter(0.1f),
 	_thr_mdl_fac(0.0f),
-	_ctl_latency(perf_alloc(PC_ELAPSED, "ctl_lat"))
+	_ctl_latency(perf_alloc(PC_ELAPSED, "ctl_lat")),
+	_time_last_rc(0)
 {
 	for (unsigned i = 0; i < _max_actuators; i++) {
 		_min_pwm[i] = PWM_DEFAULT_MIN;
@@ -907,13 +933,69 @@ PX4FMU::fill_rc_in(uint16_t raw_rc_count_local,
 		   hrt_abstime now, bool frame_drop, bool failsafe,
 		   unsigned frame_drops, int rssi = -1)
 {
+	float rc_hor = 0.01f,rc_ver = 0.01f;
 	// fill rc_in struct for publishing
 	_rc_in.channel_count = raw_rc_count_local;
 
 	if (_rc_in.channel_count > input_rc_s::RC_INPUT_MAX_CHANNELS) {
 		_rc_in.channel_count = input_rc_s::RC_INPUT_MAX_CHANNELS;
 	}
-
+		
+	/* add RC filter function by yhb */
+	if ((_rc_hor_filter < RC_MANUAL_MAX  || _rc_ver_filter < RC_MANUAL_MAX ) && _throttle_armed) {
+		
+				if (_rc_hor_filter < RC_MANUAL_MIN )
+						_rc_hor_filter = RC_MANUAL_MIN ;
+				if (_rc_ver_filter < RC_MANUAL_MIN )
+						_rc_ver_filter = RC_MANUAL_MIN ;				
+						
+				switch(_vehicle_state) {
+					case commander_state_s::MAIN_STATE_POSCTL:
+							rc_hor = POS_HOR_R * _rc_hor_filter + POS_HOR_B;
+							rc_ver = POS_VER_R * _rc_ver_filter + POS_VER_B;
+						break;
+					case commander_state_s::MAIN_STATE_STAB:
+					case commander_state_s::MAIN_STATE_ALTCTL:
+							rc_hor = STB_HOR_R * _rc_hor_filter + STB_HOR_B;
+							rc_ver = STB_VER_R * _rc_ver_filter + STB_VER_B;
+						break;
+					default:
+							rc_hor = _rc_hor_filter;
+							rc_ver = _rc_ver_filter;
+						break;
+				}
+				
+				float dt = (now - _time_last_rc) / 1e6f;
+				
+				if (!_time_last_rc) {
+					
+				 		 for (uint8_t i=0;i<RC_COUNT_FILTER;i++)
+				 		 		_filtered_rc_values[i] = raw_rc_values[i];
+				 		 		
+				} else { 	
+						 		
+		  			 float s1 = dt * rc_hor; //s = dt/b
+		  	     float s2 = dt * rc_ver;
+		  			 // roll and pitch filter
+		  			 if (rc_hor < RC_MANUAL_MAX) {
+		  			 	
+									_filtered_rc_values[0] = (1 - s1) * _filtered_rc_values[0] + s1 * raw_rc_values[0];	
+									_filtered_rc_values[1] = (1 - s1) * _filtered_rc_values[1] + s1 * raw_rc_values[1];	
+									raw_rc_values[0] = _filtered_rc_values[0];
+									raw_rc_values[1] = _filtered_rc_values[1];
+							}
+							// yaw and throttle filter
+							if (rc_ver < RC_MANUAL_MAX) {
+								
+		  					 	_filtered_rc_values[2] = (1 - s2) * _filtered_rc_values[2] + s2 * raw_rc_values[2];	
+		  					 	_filtered_rc_values[3] = (1 - s2) * _filtered_rc_values[3] + s2 * raw_rc_values[3];	
+		  					 	raw_rc_values[2] = _filtered_rc_values[2];
+		  					 	raw_rc_values[3] = _filtered_rc_values[3];
+							}		
+				}
+		    _time_last_rc = now;
+	} else { _time_last_rc = 0; }
+	//PX4_INFO("%d,%.2f,%.2f,%d,%d,%d,%d",_vehicle_state,(double)rc_hor,(double)rc_ver,raw_rc_values[0],raw_rc_values[1],raw_rc_values[2],raw_rc_values[3]);
 	unsigned valid_chans = 0;
 
 	for (unsigned i = 0; i < _rc_in.channel_count; i++) {
@@ -1019,7 +1101,7 @@ PX4FMU::cycle()
 		_armed_sub = orb_subscribe(ORB_ID(actuator_armed));
 		_param_sub = orb_subscribe(ORB_ID(parameter_update));
 		_adc_sub = orb_subscribe(ORB_ID(adc_report));
-
+		_commander_state_sub = orb_subscribe(ORB_ID(commander_state));
 		/* initialize PWM limit lib */
 		pwm_limit_init(&_pwm_limit);
 
@@ -1053,6 +1135,8 @@ PX4FMU::cycle()
 		param_get(param_find("MOT_SLEW_EN"), &_mot_slew_en);
 		param_get(param_find("MOT_RATE_LIMIT"), &_mot_rate_limit);
 		param_get(param_find("MOT_BAND_LIMIT"), &_mot_band_limit);
+		param_get(param_find("RC_HOR_FILTER"),&_rc_hor_filter);
+		param_get(param_find("RC_VER_FILTER"),&_rc_ver_filter);
 		if (_mot_rate_limit < 0.001f)
 			_mot_rate_limit = 0.001f;
 		if (_mot_band_limit < 0.001f)
@@ -1454,6 +1538,8 @@ PX4FMU::cycle()
 		param_get(param_find("MOT_SLEW_EN"), &_mot_slew_en);
 		param_get(param_find("MOT_RATE_LIMIT"), &_mot_rate_limit);
 		param_get(param_find("MOT_BAND_LIMIT"), &_mot_band_limit);
+		param_get(param_find("RC_HOR_FILTER"),&_rc_hor_filter);
+		param_get(param_find("RC_VER_FILTER"),&_rc_ver_filter);
 		if (_mot_rate_limit < 0.001f)
 			_mot_rate_limit = 0.001f;
 		if (_mot_band_limit < 0.001f)
@@ -1487,6 +1573,17 @@ PX4FMU::cycle()
 		}
 	}
 
+#endif
+
+#ifdef RC_FILTER_USE
+	orb_check(_commander_state_sub, &updated);
+	if (updated) {
+		struct commander_state_s state;
+		orb_copy(ORB_ID(commander_state), _commander_state_sub, &state);
+		if (_vehicle_state != state.main_state) {
+				_vehicle_state = state.main_state;
+		}
+	}
 #endif
 
 	bool rc_updated = false;
