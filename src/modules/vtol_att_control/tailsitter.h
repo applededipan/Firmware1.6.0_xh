@@ -74,7 +74,6 @@ private:
 		float front_trans_pitch;        /**< pitch angle to switch to FW */
 		float back_trans_pitch;         /**< pitch angle to switch to MC */
 	  int vtol_ftrans_force_en;       /**< enable skip judgement when transition to FW mode */
-		int vtol_btrans_force_en;       /**< enable skip judgement when transition to MC mode */
 		float vtol_fw_yaw_scale;     /**< VTOL yaw scale > */
 		float vtol_thr_ftrans_max;
 		float mpc_thr_min;
@@ -91,7 +90,6 @@ private:
 		param_t front_trans_pitch;    // apple
 		param_t back_trans_pitch;     // apple
 		param_t vtol_ftrans_force_en; // apple
-		param_t vtol_btrans_force_en; // apple
 		param_t vtol_fw_yaw_scale;
 		param_t vtol_thr_ftrans_max;
 		param_t mpc_thr_min;			//apple

@@ -110,17 +110,6 @@ PARAM_DEFINE_FLOAT(VT_PITCH_B_TRANS, 0.0f); // apple
 PARAM_DEFINE_INT32(VT_F_TRANS_EN, 0);
 
 /**
- * Force transition to MC mode in manual and auto mode
- *
- * Force transition to MC mode in manual and auto mode. 0 means disable.
- *
- * @min 0 
- * @max 1
- * @group VTOL Attitude Control
- */
-PARAM_DEFINE_INT32(VT_B_TRANS_EN, 0);
-
-/**
  * The proportion of VTOL rudder output
  *
  * The proportion of VTOL rudder output. 0 means disable this parameter.

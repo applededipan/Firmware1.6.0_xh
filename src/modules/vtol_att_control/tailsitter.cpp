@@ -77,7 +77,6 @@ Tailsitter::Tailsitter(VtolAttitudeControl *attc) :
 	_params_handles_tailsitter.front_trans_pitch = param_find("VT_PITCH_F_TRANS"); // apple
     	_params_handles_tailsitter.back_trans_pitch = param_find("VT_PITCH_B_TRANS");  // apple
 	_params_handles_tailsitter.vtol_ftrans_force_en = param_find("VT_F_TRANS_EN");
-	_params_handles_tailsitter.vtol_btrans_force_en = param_find("VT_B_TRANS_EN");
 	_params_handles_tailsitter.vtol_fw_yaw_scale = param_find("VT_FW_YAW_SCALE");
 	_params_handles_tailsitter.vtol_thr_ftrans_max = param_find("VT_THR_TRANS_MAX");
 	_params_handles_tailsitter.mpc_thr_min = param_find("MPC_THR_MIN"); //apple
@@ -145,10 +144,6 @@ Tailsitter::parameters_update()
     /* vtol force front transition */
 	param_get(_params_handles_tailsitter.vtol_ftrans_force_en, &l);
 	_params_tailsitter.vtol_ftrans_force_en = l;
-
-    /* vtol force back transition */	
-	param_get(_params_handles_tailsitter.vtol_btrans_force_en, &l);
-	_params_tailsitter.vtol_btrans_force_en = l;
 	
 	/* vtol lock elevons in multicopter */
 	param_get(_params_handles_tailsitter.elevons_mc_lock, &l);
@@ -176,11 +171,7 @@ void Tailsitter::update_vtol_state()
 
 	if (_attc->is_fixed_wing_requested() == 0) {  // user switchig to MC mode
         
-		if (_params_tailsitter.vtol_btrans_force_en) {  // skip judgement
-			_vtol_schedule.flight_mode = MC_MODE;
-			
-		} else {
-		switch (_vtol_schedule.flight_mode) { // user switchig to MC mode
+		switch (_vtol_schedule.flight_mode) { 
 		case MC_MODE:
 			break;
 
@@ -215,9 +206,9 @@ void Tailsitter::update_vtol_state()
 					
 				}
 
-				break;
-			}
-        }
+			break;
+		}
+       
 	} else if (_attc->is_fixed_wing_requested() == 1) {  // user switchig to FW mode
 
 	    if (_params_tailsitter.vtol_ftrans_force_en) {  // skip judgement
