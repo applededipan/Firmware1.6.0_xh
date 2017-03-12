@@ -168,6 +168,7 @@ stm32_boardinitialize(void)
 	stm32_configgpio(GPIO_ADC1_IN2);	/* BATT_VOLTAGE_SENS */
 	stm32_configgpio(GPIO_ADC1_IN3);	/* BATT_CURRENT_SENS */
 	stm32_configgpio(GPIO_ADC1_IN4);	/* VDD_5V_SENS */
+	stm32_configgpio(GPIO_ADC1_IN10);	/* vbus */
 	stm32_configgpio(GPIO_ADC1_IN11);	/* RSSI analog in */
 	stm32_configgpio(GPIO_ADC1_IN13);	/* FMU_AUX_ADC_1 */
 	stm32_configgpio(GPIO_ADC1_IN14);	/* ADI_X_SENS */
