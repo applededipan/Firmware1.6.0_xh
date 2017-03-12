@@ -77,6 +77,7 @@ private:
 		int vtol_btrans_force_en;       /**< enable skip judgement when transition to MC mode */
 		float vtol_fw_yaw_scale;     /**< VTOL yaw scale > */
 		float vtol_thr_ftrans_max;
+		float mpc_thr_min;
 	} _params_tailsitter;
 
 	struct {
@@ -93,6 +94,7 @@ private:
 		param_t vtol_btrans_force_en; // apple
 		param_t vtol_fw_yaw_scale;
 		param_t vtol_thr_ftrans_max;
+		param_t mpc_thr_min;			//apple
 	} _params_handles_tailsitter;
 
 	enum vtol_mode {

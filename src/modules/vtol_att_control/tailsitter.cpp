@@ -80,6 +80,7 @@ Tailsitter::Tailsitter(VtolAttitudeControl *attc) :
 	_params_handles_tailsitter.vtol_btrans_force_en = param_find("VT_B_TRANS_EN");
 	_params_handles_tailsitter.vtol_fw_yaw_scale = param_find("VT_FW_YAW_SCALE");
 	_params_handles_tailsitter.vtol_thr_ftrans_max = param_find("VT_THR_TRANS_MAX");
+	_params_handles_tailsitter.mpc_thr_min = param_find("MPC_THR_MIN"); //apple
 }
 
 Tailsitter::~Tailsitter()
@@ -130,6 +131,10 @@ Tailsitter::parameters_update()
 	/* vtol front transition thr max */
 	param_get(_params_handles_tailsitter.vtol_thr_ftrans_max, &v);
 	_params_tailsitter.vtol_thr_ftrans_max = math::constrain(v, 0.0f, 1.0f);
+	
+	/* minium thrust in auto thrust control */
+	param_get(_params_handles_tailsitter.mpc_thr_min, &v);
+	_params_tailsitter.mpc_thr_min = math::constrain(v, 0.0f, 1.0f);
 
 	/* vtol fw motor differential steering scale*/
 	param_get(_params_handles_tailsitter.vtol_fw_yaw_scale, &v);
@@ -390,16 +395,12 @@ void Tailsitter::update_transition_state()
 			_v_att_sp->thrust = _thrust_transition_start * 0.9f;
 			
 		} else {			
-	        matrix::Eulerf eulertemp = matrix::Quatf(_v_att->q);
-	        float pitchtemp = eulertemp.theta();
-            
-            if (pitchtemp >= (PITCH_TRANSITION_BACK-0.15f)) {				
-				_v_att_sp->thrust = _v_att_sp->thrust * _params_tailsitter.vtol_btrans_thr;
-				_v_att_sp->thrust = math::constrain(_v_att_sp->thrust, _thrust_transition_start * 0.5f, _thrust_transition_start);
-				
-			} else {				
-				_v_att_sp->thrust = _thrust_transition_start * _params_tailsitter.vtol_btrans_thr;
-				
+	        if(_params_tailsitter.mpc_thr_min <= _params_tailsitter.vtol_btrans_thr){
+	        	_v_att_sp->thrust = _params_tailsitter.vtol_btrans_thr;
+	        }else {
+	        	_v_att_sp->thrust = _params_tailsitter.vtol_btrans_thr + (_params_tailsitter.mpc_thr_min-_params_tailsitter.vtol_btrans_thr) *
+	        					(float)hrt_elapsed_time(&_vtol_schedule.transition_start)/(_params_tailsitter.back_trans_dur * 1000000.0f);
+				_v_att_sp->thrust = math::constrain(_v_att_sp->thrust, _params_tailsitter.vtol_btrans_thr, _params_tailsitter.mpc_thr_min);
 			}				
 			// _v_att_sp->thrust = _thrust_transition_start * _params_tailsitter.vtol_btrans_thr;			
 		}
