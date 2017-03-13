@@ -187,11 +187,18 @@ then
 	if hmc5883 -C -T -S -R 2 start
 	then
 	fi
-
-		# Internal SPI bus ICM-20608-G is rotated 90 deg yaw
-		#if mpu6000 -R 2 -T 20608 start
-		if mpu6000 start
+		# mpu6000 gyro not use and adi use
+		if param greater SENS_EN_ADI_MPU 0
 		then
+			if mpu6000 -T 620 start
+			then
+				#echo "INFO  [init] ADXRS620 Start"
+			fi
+		else
+			if mpu6000 start
+			then
+				#echo "INFO  [init] MPU6000 Start"
+			fi
 		fi
 
 	# Start either MPU9250 or BMI160. They are both connected to the same SPI bus and use the same

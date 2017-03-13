@@ -3415,3 +3415,14 @@ PARAM_DEFINE_FLOAT(RC_HOR_FILTER, 4.0f);
  * @group RC
  */
 PARAM_DEFINE_FLOAT(RC_VER_FILTER, 5.0f);
+
+/**
+ * ADR and MPU test 0-mpu6000 1-mpu+adi
+ *
+ * @reboot_required true
+ *
+ * @boolean
+ * @group Sensor Enable
+ */
+PARAM_DEFINE_INT32(SENS_EN_ADI_MPU, 0);
+
