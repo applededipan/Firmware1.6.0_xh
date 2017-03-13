@@ -787,7 +787,7 @@ Navigator::task_main()
 								}
 							}
 
-							waypoint_from_heading_and_distance(_home_pos.lat, _home_pos.lon, yaw, takeoff_d_p_distance, &lat, &lon);
+							waypoint_from_heading_and_distance(_home_pos.lat, _home_pos.lon, _yaw, takeoff_d_p_distance, &lat, &lon);
 
 							_pos_sp_triplet.current.lat = lat;
 							_pos_sp_triplet.current.lon = lon;
