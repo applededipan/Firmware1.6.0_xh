@@ -134,7 +134,7 @@ protected:
 	static constexpr uint32_t LAND_DETECTOR_UPDATE_RATE_HZ = 50;
 
 	/* Time in us that landing conditions have to hold before triggering a land. */
-	static constexpr uint64_t LAND_DETECTOR_TRIGGER_TIME_US = 3000000;//1000000;
+	static constexpr uint64_t LAND_DETECTOR_TRIGGER_TIME_US = 1500000;//1000000;
 
 	/** Time in us that ground contact condition have to hold before triggering contact ground */
 	static constexpr uint64_t GROUND_CONTACT_TRIGGER_TIME_US = 1000000;
