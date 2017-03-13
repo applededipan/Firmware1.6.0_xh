@@ -81,7 +81,7 @@ VtolAttitudeControl::VtolAttitudeControl() :
 	_vehicle_cmd_sub(-1),
 	_tecs_status_sub(-1),
 	_land_detected_sub(-1),
-    _ctrl_state_sub(-1), // apple 2016/11/26
+	_global_pos_sub(-1),
 	//init publication handlers
 	_actuators_0_pub(nullptr),
 	_actuators_1_pub(nullptr),
@@ -114,7 +114,7 @@ VtolAttitudeControl::VtolAttitudeControl() :
 	memset(&_vehicle_cmd, 0, sizeof(_vehicle_cmd));
 	memset(&_tecs_status, 0, sizeof(_tecs_status));
 	memset(&_land_detected, 0, sizeof(_land_detected));
-    memset(&_ctrl_state, 0, sizeof(_ctrl_state)); // apple 2016/11/26
+    memset(&_global_pos, 0, sizeof(_global_pos)); 
 	_params.idle_pwm_mc = PWM_DEFAULT_MIN;
 	_params.vtol_motor_count = 0;
 	_params.vtol_fw_permanent_stab = 0;
@@ -449,18 +449,18 @@ VtolAttitudeControl::land_detected_poll()
 }
 
 /**
-* Check for estimator airspeed updates.
+* Check for global position updates.
 */
 void
-VtolAttitudeControl::ctrl_state_poll()
+VtolAttitudeControl::vehicle_global_pos_poll()
 {
 	bool updated;
 
-	orb_check(_ctrl_state_sub, &updated);
+	orb_check(_global_pos_sub, &updated);
 
 	if (updated) {
-		orb_copy(ORB_ID(control_state), _ctrl_state_sub , &_ctrl_state);
-	} 
+		orb_copy(ORB_ID(vehicle_global_position), _global_pos_sub , &_global_pos);
+	} 	
 }
 
 /**
@@ -672,7 +672,7 @@ void VtolAttitudeControl::task_main()
 	_vehicle_cmd_sub	   = orb_subscribe(ORB_ID(vehicle_command));
 	_tecs_status_sub = orb_subscribe(ORB_ID(tecs_status));
 	_land_detected_sub = orb_subscribe(ORB_ID(vehicle_land_detected));
-    _ctrl_state_sub = orb_subscribe(ORB_ID(control_state)); // apple 2016/11/26
+    _global_pos_sub = orb_subscribe(ORB_ID(vehicle_global_position)); 
 	_actuator_inputs_mc    = orb_subscribe(ORB_ID(actuator_controls_virtual_mc));
 	_actuator_inputs_fw    = orb_subscribe(ORB_ID(actuator_controls_virtual_fw));
 
@@ -751,7 +751,7 @@ void VtolAttitudeControl::task_main()
 		vehicle_cmd_poll();
 		tecs_status_poll();
 		land_detected_poll();
-        ctrl_state_poll(); // apple 2016/11/26
+        vehicle_global_pos_poll();
 		// update the vtol state machine which decides which mode we are in
 		_vtol_type->update_vtol_state();
 

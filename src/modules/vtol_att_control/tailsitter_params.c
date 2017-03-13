@@ -122,3 +122,14 @@ PARAM_DEFINE_FLOAT(VT_FW_YAW_SCALE, 0.0f);
  * @group VTOL Attitude Control
  */
 PARAM_DEFINE_FLOAT(VT_THR_TRANS_MAX, 0.25f);
+
+/**
+ * speed during back transition
+ *
+ * @unit norm
+ * @min 0.0
+ * @max 20.0
+ * @increment 0.1
+ * @group VTOL Attitude Control
+ */
+PARAM_DEFINE_FLOAT(VT_BACK_VEL, 5.0f);

@@ -70,11 +70,12 @@ private:
 		float airspeed_trans;			/**< airspeed at which we switch to fw mode after transition */
 		float airspeed_blend_start;		/**< airspeed at which we start blending mc/fw controls */
 		int elevons_mc_lock;			/**< lock elevons in multicopter mode */
-    float vtol_btrans_thr;          // apple 2016/11/26
+        float vtol_btrans_thr;          // apple 2016/11/26
 		float front_trans_pitch;        /**< pitch angle to switch to FW */
 		float back_trans_pitch;         /**< pitch angle to switch to MC */
 		float vtol_fw_yaw_scale;     /**< VTOL yaw scale > */
 		float vtol_thr_ftrans_max;
+		float back_trans_vel_threshold;
 		float mpc_thr_min;
 	} _params_tailsitter;
 
@@ -85,19 +86,23 @@ private:
 		param_t airspeed_trans;
 		param_t airspeed_blend_start;
 		param_t elevons_mc_lock;
-    param_t vtol_btrans_thr;      // apple 2016/11/26
+        param_t vtol_btrans_thr;      // apple 2016/11/26
 		param_t front_trans_pitch;    // apple
 		param_t back_trans_pitch;     // apple
 		param_t vtol_fw_yaw_scale;
 		param_t vtol_thr_ftrans_max;
-		param_t mpc_thr_min;			//apple
+		param_t back_trans_vel_threshold;
+		param_t mpc_thr_min;
+		param_t vtol_fw_yaw_scale;
 	} _params_handles_tailsitter;
 
 	enum vtol_mode {
 		MC_MODE = 0,			/**< vtol is in multicopter mode */
 		TRANSITION_FRONT_P1,	/**< vtol is in front transition part 1 mode */
 		TRANSITION_FRONT_P2,	/**< vtol is in front transition part 2 mode */
-		TRANSITION_BACK,		/**< vtol is in back transition mode */
+		TRANSITION_BACK_P1,		/**< vtol is in back transition part1 mode */
+        TRANSITION_BACK_P2,     /**< vtol is in back transition part2 mode */
+        TRANSITION_BACK_P3,     /**< vtol is in back transition part3 mode */
 		FW_MODE					/**< vtol is in fixed wing mode */
 	};
 
@@ -106,6 +111,7 @@ private:
 		hrt_abstime transition_start;	/**< absoulte time at which front transition started */
 	} _vtol_schedule;
 
+	orb_advert_t _mavlink_log_pub;	// mavlink log uORB handle // apple 20170309
 	float _airspeed_tot; 		/** speed estimation for propwash controlled surfaces */
 
 	/** not sure about it yet ?! **/
@@ -114,6 +120,7 @@ private:
 	float _thrust_transition_start; // throttle value when we start the front transition
 	float _yaw_transition;	// yaw angle in which transition will take place
 	float _pitch_transition_start;  // pitch angle at the start of transition (tailsitter)
+	float _roll_transition_start;   // roll angle at the start of transition (tailsitter)
 
 
 	/** should this anouncement stay? **/

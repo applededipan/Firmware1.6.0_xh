@@ -92,6 +92,7 @@
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/vehicle_rates_setpoint.h>
 #include <uORB/topics/vtol_vehicle_status.h>
+#include <uORB/topics/vehicle_global_position.h>
 #include <uORB/uORB.h>
 
 #include "tiltrotor.h"
@@ -133,7 +134,7 @@ public:
 	struct battery_status_s 			*get_batt_status() {return &_batt_status;}
 	struct tecs_status_s 				*get_tecs_status() {return &_tecs_status;}
 	struct vehicle_land_detected_s			*get_land_detected() {return &_land_detected;}
-    struct control_state_s              *get_ctrl_state() {return &_ctrl_state;} // apple 2016/11/26
+	struct vehicle_global_position_s	*get_global_pos() {return &_global_pos;}		/**< global position */
 	struct Params 					*get_params() {return &_params;}
 
 
@@ -160,7 +161,7 @@ private:
 	int	_vehicle_cmd_sub;
 	int	_tecs_status_sub;
 	int	_land_detected_sub;
-    int _ctrl_state_sub;            // apple 2016/11/26
+	int _global_pos_sub;
 	int 	_actuator_inputs_mc;	//topic on which the mc_att_controller publishes actuator inputs
 	int 	_actuator_inputs_fw;	//topic on which the fw_att_controller publishes actuator inputs
 
@@ -193,7 +194,7 @@ private:
 	struct vehicle_command_s			_vehicle_cmd;
 	struct tecs_status_s				_tecs_status;
 	struct vehicle_land_detected_s			_land_detected;
-    struct control_state_s              _ctrl_state;    // apple 2016/11/26
+	struct vehicle_global_position_s	_global_pos;		/**< global position */
 	Params _params;	// struct holding the parameters
 
 	struct {
@@ -250,7 +251,7 @@ private:
 	void 		fill_fw_att_rates_sp();
 	void		handle_command();
 	void 		publish_att_sp();
-	void        ctrl_state_poll();              // Check for changes in airspeed estimator  apple 2016/11/26
+	void 		vehicle_global_pos_poll();
 };
 
 #endif
