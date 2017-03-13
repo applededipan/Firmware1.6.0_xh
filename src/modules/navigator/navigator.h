@@ -239,7 +239,7 @@ private:
 	int		_navigator_task;		/**< task handle for sensor task */
 
 	orb_advert_t	_mavlink_log_pub;		/**< the uORB advert to send messages over mavlink */
-
+	int		_ctrl_state_sub;	/**< control state subscription */ //apple 20170311
 	int		_global_pos_sub;		/**< global position subscription */
 	int		_gps_pos_sub;		/**< gps position subscription */
 	int		_sensor_combined_sub;		/**< sensor combined subscription */
@@ -267,6 +267,7 @@ private:
 	vehicle_status_s				_vstatus;		/**< vehicle status */
 	vehicle_land_detected_s				_land_detected;		/**< vehicle land_detected */
 	vehicle_control_mode_s				_control_mode;		/**< vehicle control mode */
+	control_state_s						_ctrl_state;	/**< control state */
 	vehicle_global_position_s			_global_pos;		/**< global vehicle position */
 	vehicle_gps_position_s				_gps_pos;		/**< gps position */
 	sensor_combined_s				_sensor_combined;	/**< sensor values */
@@ -325,6 +326,15 @@ private:
 	float _mission_cruising_speed_mc;
 	float _mission_cruising_speed_fw;
 	float _mission_throttle;
+	math::Matrix<3, 3> _R;
+	float _roll;
+	float _pitch;
+	float _yaw;
+
+	/**
+	 * Retrieve control state
+	 */
+	void		control_state_update();
 
 	/**
 	 * Retrieve global position
@@ -413,7 +423,7 @@ private:
 	/*
 	 * get euler angles from rotation matrix
 	 */
-	void dcm_to_euler(float *pitch, float *roll, float *yaw, float data[][3]);
+	void 		dcm_to_euler(float *pitch, float *roll, float *yaw, float data[][3]);
 	
 };
 #endif

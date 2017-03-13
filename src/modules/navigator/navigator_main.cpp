@@ -73,6 +73,7 @@
 #include <uORB/topics/fence.h>
 #include <uORB/topics/fw_pos_ctrl_status.h>
 #include <uORB/topics/vehicle_command.h>
+#include <uORB/topics/control_state.h>
 #include <drivers/drv_baro.h>
 
 #include <systemlib/err.h>
@@ -104,6 +105,7 @@ Navigator::Navigator() :
 	_task_should_exit(false),
 	_navigator_task(-1),
 	_mavlink_log_pub(nullptr),
+	_ctrl_state_sub(-1),
 	_global_pos_sub(-1),
 	_gps_pos_sub(-1),
 	_sensor_combined_sub(-1),
@@ -217,6 +219,12 @@ Navigator::global_position_update()
 }
 
 void
+Navigator::control_state_update()
+{
+	orb_copy(ORB_ID(control_state), _ctrl_state_sub, &_global_pos);
+}
+
+void
 Navigator::gps_position_update()
 {
 	orb_copy(ORB_ID(vehicle_gps_position), _gps_pos_sub, &_gps_pos);
@@ -304,6 +312,7 @@ Navigator::task_main()
 	}
 
 	/* do subscriptions */
+	_ctrl_state_sub = orb_subscribe(ORB_ID(control_state));
 	_global_pos_sub = orb_subscribe(ORB_ID(vehicle_global_position));
 	_gps_pos_sub = orb_subscribe(ORB_ID(vehicle_gps_position));
 	_sensor_combined_sub = orb_subscribe(ORB_ID(sensor_combined));
@@ -323,6 +332,7 @@ Navigator::task_main()
 	vehicle_status_update();
 	vehicle_land_detected_update();
 	vehicle_control_mode_update();
+	control_state_update();
 	global_position_update();
 	gps_position_update();
 	sensor_combined_update();
@@ -693,25 +703,25 @@ Navigator::task_main()
 		if (takeoff_d_p_enable) {
 			static double lat, lon;
 			static bool takeoff_d_p_end = 0;
-			static uint64_t timestamp_break= 1 ;
+			static uint64_t timestamp_last = 0;
 
 			if ((_pos_sp_triplet.current.type == position_setpoint_s::SETPOINT_TYPE_TAKEOFF)&&(!takeoff_d_p_end)) {
 					double distance = get_distance_to_next_waypoint(
 														(double)_home_pos.lat,(double)_home_pos.lon,
 														_global_pos.lat ,_global_pos.lon );
 
-				if (fabs(distance) < (double)(takeoff_d_p_distance))	{
+				if (fabs(distance) < (double)(takeoff_d_p_distance)) {
 					updated = false;
 					orb_check(takeoff_dynamic_point_sub, &updated);
 
-					if (updated)	{
+					if (updated) {
 						orb_copy(ORB_ID(takeoff_dynamic_point), takeoff_dynamic_point_sub, &_takeoff_dynamic_point_triplet);
 					}
 
-					if (takeoff_d_p_end)	{
+					if (takeoff_d_p_end) {
 						_takeoff_dynamic_point_triplet.enable = 0;
-					}	else if((fabs(distance)>(double)(takeoff_d_p_distance-5))) {
-						/*|| (timestamp_break>50&&timestamp_break<1000000)*/ 	 
+					
+					} else if ((fabs(distance)>(double)(takeoff_d_p_distance-5))) {
 						_pos_sp_triplet_updated = true;
 
 						mission_item_s mission_item;
@@ -719,74 +729,61 @@ Navigator::task_main()
 						_pos_sp_triplet.current.lat = mission_item.lat;
 						_pos_sp_triplet.current.lon = mission_item.lon;
 						_pos_sp_triplet.current.valid = true;
-//						mavlink_log_info(&_mavlink_log_pub, "TAKEOFF_D_P_EN = 0, TAKEOFF_D_P End");
 						_takeoff_dynamic_point_triplet.enable = 0;
 						takeoff_d_p_end = 1;
 					}	else if(!_takeoff_dynamic_point_triplet.enable)	{
 						_pos_sp_triplet_updated = true;
 
-						vehicle_attitude_s att;
-						static int att_sub = 0;
-						if(att_sub == 0) {
-							att_sub = orb_subscribe(ORB_ID(vehicle_attitude));
-						}	else {
-							orb_check(att_sub,&updated);
-							orb_copy(ORB_ID(vehicle_attitude), att_sub, &att);
-						}
+						if (hrt_absolute_time() - timestamp_last >= 500000) {
+							timestamp_last = hrt_absolute_time();
 
-						uint64_t timestamp_now = att.timestamp/1000000;
-						if ((timestamp_now - timestamp_break) >= 1/*&& (timestamp_now - timestamp_break) < 10000000000*/)	{
-							timestamp_break = timestamp_now ;
-							matrix::Eulerf euler = matrix::Quatf(att.q);
+							/* load local copies */
+							orb_copy(ORB_ID(control_state), _ctrl_state_sub, &_ctrl_state);
 
-							float roll = euler.phi();
-							float pitch = euler.theta();
-							float yaw = euler.psi();
+							/* get current rotation matrix and euler angles from control state quaternions */
+							math::Quaternion q_att(_ctrl_state.q[0], _ctrl_state.q[1], _ctrl_state.q[2], _ctrl_state.q[3]);
+							_R = q_att.to_dcm();
 
-							if (_vstatus.is_vtol && vtol_type == 0) {
-							
-								float pitchTemp =  pitch;
-								float rollTemp  =  roll;
-								float yawTemp   =  yaw;
+							math::Vector<3> euler_angles;
+							euler_angles = _R.to_euler();
 
-								if (!_vstatus.in_transition_mode && _vstatus.is_rotary_wing) {
-									// _msg.vtol_state = MAV_VTOL_STATE_MC;
-									// else if(mavData.sysStatus.vtolState == MAV_VTOL_STATE_MC)
-									// mc mode
-									roll  = rollTemp;
-									pitch = pitchTemp;
-									yaw   = (yawTemp < 0.0f) ? yawTemp +  2.0f * 3.14f : yawTemp;
-									
-								} else if (!_vstatus.in_transition_mode) {
-									// _msg.vtol_state = MAV_VTOL_STATE_FW;
-									// if(_vstatus.vtolState == MAV_VTOL_STATE_FW)
-									// fw mode
-									float Me[3][3] = {0.0f}, Him[3][3] = {0.0f};
-									dcm_from_euler(Me, pitchTemp, rollTemp, yawTemp);
-									dcm_from_euler(Him, 1.57f, 0.0f, 0.0f);
+							if (_vstatus.is_vtol && (vtol_type == 0)) {
 
-									float self[3][3] = {0.0f}, other[3][3] = {0.0f}, res[3][3] = {0.0f};
-									memcpy(self, Me, sizeof(Me));
-									memcpy(other, (Him), sizeof(Him));
-									memset(res, 0, sizeof(res));
+								if (!_vstatus.in_transition_mode && _vstatus.is_rotary_wing) { // mc mode
+									_roll  = euler_angles(0);
+									_pitch = euler_angles(1);
+									_yaw   = (euler_angles(2) < 0.0f) ? euler_angles(2) +  2.0f * 3.14f : euler_angles(2);
 
-									for (uint8_t i = 0; i < 3; i++) {
-										for (uint8_t k = 0; k < 3; k++) {
-											for (uint8_t j = 0; j < 3; j++) {
-												res[i][k] += self[i][j] * other[j][k];
-											}
-										}
-									}
-									
-									dcm_to_euler(&pitchTemp, &rollTemp, &yawTemp, res);
-									pitch = pitchTemp;
-									roll  = rollTemp;
-									yaw   = (yawTemp < 0.0f) ? yawTemp + 2.0f * 3.14f : yawTemp;
-								
-								} else {
-									roll  = rollTemp;
-									pitch = pitchTemp;
-									yaw   = (yawTemp < 0.0f) ? yawTemp + 2.0f * 3.14f : yawTemp;
+								} else if (!_vstatus.in_transition_mode) { // fw mode
+									math::Matrix<3, 3> R_adapted = _R;	   //modified rotation matrix
+
+									// move z to x
+									R_adapted(0, 0) = _R(0, 2);
+									R_adapted(1, 0) = _R(1, 2);
+									R_adapted(2, 0) = _R(2, 2);
+
+									// move x to z
+									R_adapted(0, 2) = _R(0, 0);
+									R_adapted(1, 2) = _R(1, 0);
+									R_adapted(2, 2) = _R(2, 0);
+
+									// change direction of pitch (convert to right handed system)
+									R_adapted(0, 0) = -R_adapted(0, 0);
+									R_adapted(1, 0) = -R_adapted(1, 0);
+									R_adapted(2, 0) = -R_adapted(2, 0);
+									euler_angles = R_adapted.to_euler();  //adapted euler angles for fixed wing operation
+
+									// fill in new attitude data
+									_R = R_adapted;
+									_roll    = euler_angles(0);
+									_pitch   = euler_angles(1);
+									_yaw     = (euler_angles(2) < 0.0f) ? euler_angles(2) + 2.0f * 3.14f : euler_angles(2);
+
+									// lastly, roll- and yawspeed have to be swaped
+									float helper = _ctrl_state.roll_rate;
+									_ctrl_state.roll_rate = -_ctrl_state.yaw_rate;
+									_ctrl_state.yaw_rate = helper;
+
 								}
 							}
 
@@ -800,25 +797,24 @@ Navigator::task_main()
 							_takeoff_dynamic_point_triplet.lat = lat;
 							_takeoff_dynamic_point_triplet.lon = lon;
 							orb_publish(ORB_ID(takeoff_dynamic_point), _takeoff_dynamic_point_pub, &_takeoff_dynamic_point_triplet);
-							//mavlink_log_info(&_mavlink_log_pub, "takeoff_dynamic_point is changing lat and lon");
 						}
-					}	else if(_takeoff_dynamic_point_triplet.enable) {
-						timestamp_break =1;
+						
+					} else if (_takeoff_dynamic_point_triplet.enable) {
 						_pos_sp_triplet_updated = true;
 						_pos_sp_triplet.current.lat = lat;
 						_pos_sp_triplet.current.lon = lon;
 						_pos_sp_triplet.current.valid = true;
-						//mavlink_log_info(&_mavlink_log_pub, " _takeoff_dynamic_point_triplet.enable = 1,takeoff_dynamic_point do not chang");
 					}
 				}
-			}	else	if((_pos_sp_triplet.current.type != position_setpoint_s::SETPOINT_TYPE_TAKEOFF)	&& (takeoff_d_p_end)) {
-					takeoff_d_p_end = 0;
-					_takeoff_dynamic_point_triplet.enable = 0;
-					_takeoff_dynamic_point_triplet.lat = 0;
-					_takeoff_dynamic_point_triplet.lon = 0;
-					orb_publish(ORB_ID(takeoff_dynamic_point), _takeoff_dynamic_point_pub, &_takeoff_dynamic_point_triplet);
-					//mavlink_log_info(&_mavlink_log_pub, " takeoff_d_p_end = 0, takeoff_d_p_end is changed");
+			
+			} else if ((_pos_sp_triplet.current.type != position_setpoint_s::SETPOINT_TYPE_TAKEOFF)	&& (takeoff_d_p_end)) {
+				takeoff_d_p_end = 0;
+				_takeoff_dynamic_point_triplet.enable = 0;
+				_takeoff_dynamic_point_triplet.lat = 0;
+				_takeoff_dynamic_point_triplet.lon = 0;
+				orb_publish(ORB_ID(takeoff_dynamic_point), _takeoff_dynamic_point_pub, &_takeoff_dynamic_point_triplet);
 			}
+		
 		}
 	
 		if (_pos_sp_triplet_updated) {
@@ -834,7 +830,6 @@ Navigator::task_main()
 
 		perf_end(_loop_perf);
 	}
-
 	PX4_INFO("exiting");
 
 	_navigator_task = -1;
