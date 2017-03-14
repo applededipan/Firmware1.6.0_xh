@@ -650,7 +650,7 @@ MulticopterPositionControl::parameters_update(bool force)
 		 * increase the maximum horizontal acceleration such that stopping
 		 * within 1 s from full speed is feasible
 		 */
-		_params.acc_hor_max = math::max(_params.vel_cruise(0), _params.acc_hor_max);
+		//_params.acc_hor_max = math::max(_params.vel_cruise(0), _params.acc_hor_max);//sun.sheng
 		param_get(_params_handles.alt_mode, &v_i);
 		_params.alt_mode = v_i;
 
@@ -1307,10 +1307,32 @@ MulticopterPositionControl::limit_acceleration(float dt)
 	math::Vector<2> acc_hor;
 	acc_hor(0) = (_vel_sp(0) - _vel_sp_prev(0)) / dt;
 	acc_hor(1) = (_vel_sp(1) - _vel_sp_prev(1)) / dt;
+	float _acc_hor_max = _params.acc_hor_max;
+	switch (_vehicle_status.nav_state)
+	{
+		case vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION:
+		case vehicle_status_s::NAVIGATION_STATE_AUTO_LOITER:
+		case vehicle_status_s::NAVIGATION_STATE_AUTO_RCRECOVER:
+		case vehicle_status_s::NAVIGATION_STATE_AUTO_RTL:
+		case vehicle_status_s::NAVIGATION_STATE_AUTO_TAKEOFF:
+		case vehicle_status_s::NAVIGATION_STATE_AUTO_LAND:
+		case vehicle_status_s::NAVIGATION_STATE_DESCEND:
+		case vehicle_status_s::NAVIGATION_STATE_AUTO_RTGS:
+		case vehicle_status_s::NAVIGATION_STATE_AUTO_LANDENGFAIL:
+		case vehicle_status_s::NAVIGATION_STATE_AUTO_LANDGPSFAIL:
+		case vehicle_status_s::NAVIGATION_STATE_AUTO_FOLLOW_TARGET:
+			_acc_hor_max *=0.4f;
+			break;
+		default:
+			break;
+	}
 
-	if (acc_hor.length() > _params.acc_hor_max) {
+
+	//if (acc_hor.length() > _params.acc_hor_max) {
+	if (acc_hor.length() > _acc_hor_max) {
 		acc_hor.normalize();
-		acc_hor *= _params.acc_hor_max;
+		//acc_hor *= _params.acc_hor_max;
+		acc_hor *= _acc_hor_max;
 		math::Vector<2> vel_sp_hor_prev(_vel_sp_prev(0), _vel_sp_prev(1));
 		math::Vector<2> vel_sp_hor = acc_hor * dt + vel_sp_hor_prev;
 		_vel_sp(0) = vel_sp_hor(0);
@@ -1321,9 +1343,11 @@ MulticopterPositionControl::limit_acceleration(float dt)
 	float acc_v = (_vel_sp(2) - _vel_sp_prev(2)) / dt;
 
 	// TODO: vertical acceleration is not just 2 * horizontal acceleration
-	if (fabsf(acc_v) > 2 * _params.acc_hor_max) {
+	//if (fabsf(acc_v) > 2 * _params.acc_hor_max) {
+	if (fabsf(acc_v) > 2 *_acc_hor_max) {
 		acc_v /= fabsf(acc_v);
-		_vel_sp(2) = acc_v * 2 * _params.acc_hor_max * dt + _vel_sp_prev(2);
+		//_vel_sp(2) = acc_v * 2 * _params.acc_hor_max * dt + _vel_sp_prev(2);
+		_vel_sp(2) = acc_v * 2 * _acc_hor_max * dt + _vel_sp_prev(2);
 	}
 
 }
