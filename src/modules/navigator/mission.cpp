@@ -736,13 +736,13 @@ Mission::set_mission_items()
 			_mission_item.nav_cmd = NAV_CMD_WAYPOINT;
 			_mission_item.autocontinue = true;
 			_mission_item.time_inside = 0.0f;
-			_mission_item.disable_mc_yaw = true;
+			_mission_item.disable_mc_yaw = false; // true apple170314
 		}
 
 		/* we just moved to the landing waypoint, now descend */
 		if (_work_item_type == WORK_ITEM_TYPE_MOVE_TO_LAND &&
 		    new_work_item_type == WORK_ITEM_TYPE_DEFAULT) {
-
+			_mission_item.time_inside = 0.0f; // apple 20170314
 			new_work_item_type = WORK_ITEM_TYPE_DEFAULT;
 			/* XXX: noop */
 		}
@@ -752,6 +752,7 @@ Mission::set_mission_items()
 		 * that aligns the vehicle first */
 		if (_mission_item.nav_cmd == NAV_CMD_LAND || _mission_item.nav_cmd == NAV_CMD_VTOL_LAND) {
 			_mission_item.yaw = NAN;
+			_mission_item.time_inside = 0.0f; // apple 20170314
 		}
 
 	} else {
