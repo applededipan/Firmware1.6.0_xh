@@ -404,6 +404,8 @@ public:
 	unsigned short		get_remote_port() { return _remote_port; }
 
 	int 			get_socket_fd() { return _socket_fd; };
+	int       		get_vtol_type() { return _vtol_type; }; 
+	
 #ifdef __PX4_POSIX
 	struct sockaddr_in 	*get_client_source_address() { return &_src_addr; }
 
@@ -538,7 +540,8 @@ private:
 	float			_rate_tx;
 	float			_rate_txerr;
 	float			_rate_rx;
-
+	int       		_vtol_type;
+	
 #ifdef __PX4_POSIX
 	struct sockaddr_in _myaddr;
 	struct sockaddr_in _src_addr;
@@ -581,7 +584,8 @@ private:
 	param_t			_param_use_hil_gps;
 	param_t			_param_forward_externalsp;
 	param_t			_param_broadcast;
-
+	param_t   	 	_param_vtol_type;
+	
 	unsigned		_system_type;
 	static bool		_config_link_on;
 

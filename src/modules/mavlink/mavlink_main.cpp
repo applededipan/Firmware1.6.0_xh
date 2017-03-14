@@ -234,6 +234,7 @@ Mavlink::Mavlink() :
 	_rate_tx(0.0f),
 	_rate_txerr(0.0f),
 	_rate_rx(0.0f),
+	_vtol_type(-1),
 #ifdef __PX4_POSIX
 	_myaddr {},
 	_src_addr{},
@@ -263,6 +264,7 @@ Mavlink::Mavlink() :
 	_param_use_hil_gps(PARAM_INVALID),
 	_param_forward_externalsp(PARAM_INVALID),
 	_param_broadcast(PARAM_INVALID),
+	_param_vtol_type(PARAM_INVALID),
 	_system_type(0),
 
 	/* performance counters */
@@ -567,7 +569,7 @@ void Mavlink::mavlink_update_system(void)
 		_param_use_hil_gps = param_find("MAV_USEHILGPS");
 		_param_forward_externalsp = param_find("MAV_FWDEXTSP");
 		_param_broadcast = param_find("MAV_BROADCAST");
-
+		_param_vtol_type = param_find("VT_TYPE");
 		/* test param - needs to be referenced, but is unused */
 		(void)param_find("MAV_TEST_PAR");
 	}
@@ -632,6 +634,8 @@ void Mavlink::mavlink_update_system(void)
 	param_get(_param_broadcast, &_broadcast_mode);
 
 	_forward_externalsp = (bool)forward_externalsp;
+	
+	param_get(_param_vtol_type,&_vtol_type);
 }
 
 int Mavlink::get_system_id()
