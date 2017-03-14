@@ -82,7 +82,7 @@
 #include <dataman/dataman.h>
 #include <mathlib/mathlib.h>
 #include <systemlib/mavlink_log.h>
-
+#include <vtol_att_control/vtol_type.h> // apple170314
 #include "navigator.h"
 
 /**
@@ -731,7 +731,8 @@ Navigator::task_main()
 						_pos_sp_triplet.current.valid = true;
 						_takeoff_dynamic_point_triplet.enable = 0;
 						takeoff_d_p_end = 1;
-					}	else if(!_takeoff_dynamic_point_triplet.enable)	{
+
+					} else if (!_takeoff_dynamic_point_triplet.enable) {
 						_pos_sp_triplet_updated = true;
 
 						if (hrt_absolute_time() - timestamp_last >= 500000) {
@@ -746,45 +747,36 @@ Navigator::task_main()
 
 							math::Vector<3> euler_angles;
 							euler_angles = _R.to_euler();
+							_yaw = (euler_angles(2) < 0.0f) ? euler_angles(2) +  2.0f * 3.14f : euler_angles(2);
 
-							if (_vstatus.is_vtol && (vtol_type == 0)) {
+							if (_vstatus.is_vtol && (vtol_type == TAILSITTER) && !_vstatus.in_transition_mode && !_vstatus.is_rotary_wing) { //fw mode
+								math::Matrix<3, 3> R_adapted = _R;	   //modified rotation matrix
 
-								if (!_vstatus.in_transition_mode && _vstatus.is_rotary_wing) { // mc mode
-									_roll  = euler_angles(0);
-									_pitch = euler_angles(1);
-									_yaw   = (euler_angles(2) < 0.0f) ? euler_angles(2) +  2.0f * 3.14f : euler_angles(2);
+								// move z to x
+								R_adapted(0, 0) = _R(0, 2);
+								R_adapted(1, 0) = _R(1, 2);
+								R_adapted(2, 0) = _R(2, 2);
 
-								} else if (!_vstatus.in_transition_mode) { // fw mode
-									math::Matrix<3, 3> R_adapted = _R;	   //modified rotation matrix
+								// move x to z
+								R_adapted(0, 2) = _R(0, 0);
+								R_adapted(1, 2) = _R(1, 0);
+								R_adapted(2, 2) = _R(2, 0);
 
-									// move z to x
-									R_adapted(0, 0) = _R(0, 2);
-									R_adapted(1, 0) = _R(1, 2);
-									R_adapted(2, 0) = _R(2, 2);
+								// change direction of pitch (convert to right handed system)
+								R_adapted(0, 0) = -R_adapted(0, 0);
+								R_adapted(1, 0) = -R_adapted(1, 0);
+								R_adapted(2, 0) = -R_adapted(2, 0);
+								euler_angles = R_adapted.to_euler();  //adapted euler angles for fixed wing operation
 
-									// move x to z
-									R_adapted(0, 2) = _R(0, 0);
-									R_adapted(1, 2) = _R(1, 0);
-									R_adapted(2, 2) = _R(2, 0);
+								// fill in new attitude data
+								_R = R_adapted;
+								_yaw = (euler_angles(2) < 0.0f) ? euler_angles(2) + 2.0f * 3.14f : euler_angles(2);
 
-									// change direction of pitch (convert to right handed system)
-									R_adapted(0, 0) = -R_adapted(0, 0);
-									R_adapted(1, 0) = -R_adapted(1, 0);
-									R_adapted(2, 0) = -R_adapted(2, 0);
-									euler_angles = R_adapted.to_euler();  //adapted euler angles for fixed wing operation
+								// lastly, roll- and yawspeed have to be swaped
+								float helper = _ctrl_state.roll_rate;
+								_ctrl_state.roll_rate = -_ctrl_state.yaw_rate;
+								_ctrl_state.yaw_rate = helper;
 
-									// fill in new attitude data
-									_R = R_adapted;
-									_roll    = euler_angles(0);
-									_pitch   = euler_angles(1);
-									_yaw     = (euler_angles(2) < 0.0f) ? euler_angles(2) + 2.0f * 3.14f : euler_angles(2);
-
-									// lastly, roll- and yawspeed have to be swaped
-									float helper = _ctrl_state.roll_rate;
-									_ctrl_state.roll_rate = -_ctrl_state.yaw_rate;
-									_ctrl_state.yaw_rate = helper;
-
-								}
 							}
 
 							waypoint_from_heading_and_distance(_home_pos.lat, _home_pos.lon, _yaw, takeoff_d_p_distance, &lat, &lon);
