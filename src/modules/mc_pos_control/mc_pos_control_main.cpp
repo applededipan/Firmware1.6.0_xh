@@ -1085,13 +1085,13 @@ MulticopterPositionControl::control_non_manual(float dt)
 	}
 
 	/* weather-vane mode for vtol: disable yaw control */
-	if (_pos_sp_triplet.current.disable_mc_yaw_control == true) {
-		_att_sp.disable_mc_yaw_control = true;
-
-	} else {
-		/* reset in case of setpoint updates */
+//	if (_pos_sp_triplet.current.disable_mc_yaw_control == true) {
+//		_att_sp.disable_mc_yaw_control = true;
+//
+//	} else {
+//		/* reset in case of setpoint updates */
 		_att_sp.disable_mc_yaw_control = false;
-	}
+//	}
 
 	// guard against any bad velocity values
 
