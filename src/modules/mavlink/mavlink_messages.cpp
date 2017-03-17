@@ -835,6 +835,7 @@ private:
 	/* do not allow top copying this class */
 	MavlinkStreamAttitude(MavlinkStreamAttitude &);
 	MavlinkStreamAttitude &operator = (const MavlinkStreamAttitude &);
+	struct vehicle_status_s v_status;
 
 
 protected:
@@ -843,12 +844,14 @@ protected:
 		_att_time(0),
 		_status_sub(_mavlink->add_orb_subscription(ORB_ID(vehicle_status))),
 		_status_time(0)
-	{}
+	{
+		memset(&v_status, 0, sizeof(v_status));
+	}
 
 	void send(const hrt_abstime t)
 	{
+		_status_sub->update(&_status_time, &v_status);
 		struct vehicle_attitude_s att;
-		struct vehicle_status_s status = {};
 		if (_att_sub->update(&_att_time, &att)) {
 			mavlink_attitude_t msg;
 			matrix::Eulerf euler = matrix::Quatf(att.q);
@@ -860,40 +863,36 @@ protected:
 			msg.pitchspeed = att.pitchspeed;
 			msg.yawspeed = att.yawspeed;
 
-			if (_status_sub->update(&_status_time, &status)) {
+			if (v_status.is_vtol && (_mavlink->get_vtol_type() == TAILSITTER) && !v_status.in_transition_mode && !v_status.is_rotary_wing) {
 
-				if (status.is_vtol && (_mavlink->get_vtol_type() == TAILSITTER) && !status.in_transition_mode && !status.is_rotary_wing) {
-					 
-					math::Quaternion q_att(att.q[0], att.q[1], att.q[2], att.q[3]);
-					math::Matrix<3, 3> _R = q_att.to_dcm();
-					math::Matrix<3, 3> R_adapted = _R;		//modified rotation matrix
-					math::Vector<3> euler_angles;
-					/* move z to x */
-					R_adapted(0, 0) = _R(0, 2);
-					R_adapted(1, 0) = _R(1, 2);
-					R_adapted(2, 0) = _R(2, 2);
+				math::Quaternion q_att(att.q[0], att.q[1], att.q[2], att.q[3]);
+				math::Matrix<3, 3> _R = q_att.to_dcm();
+				math::Matrix<3, 3> R_adapted = _R;		//modified rotation matrix
+				math::Vector<3> euler_angles;
+				/* move z to x */
+				R_adapted(0, 0) = _R(0, 2);
+				R_adapted(1, 0) = _R(1, 2);
+				R_adapted(2, 0) = _R(2, 2);
 
-					/* move x to z */
-					R_adapted(0, 2) = _R(0, 0);
-					R_adapted(1, 2) = _R(1, 0);
-					R_adapted(2, 2) = _R(2, 0);
+				/* move x to z */
+				R_adapted(0, 2) = _R(0, 0);
+				R_adapted(1, 2) = _R(1, 0);
+				R_adapted(2, 2) = _R(2, 0);
 
-					/* change direction of pitch (convert to right handed system) */
-					R_adapted(0, 0) = -R_adapted(0, 0);
-					R_adapted(1, 0) = -R_adapted(1, 0);
-					R_adapted(2, 0) = -R_adapted(2, 0);
-					euler_angles = R_adapted.to_euler();  //adapted euler angles for fixed wing operation
+				/* change direction of pitch (convert to right handed system) */
+				R_adapted(0, 0) = -R_adapted(0, 0);
+				R_adapted(1, 0) = -R_adapted(1, 0);
+				R_adapted(2, 0) = -R_adapted(2, 0);
+				euler_angles = R_adapted.to_euler();  //adapted euler angles for fixed wing operation
 
-					msg.roll = euler_angles(0);
-					msg.pitch = euler_angles(1);
-					msg.yaw = euler_angles(2);
+				msg.roll = euler_angles(0);
+				msg.pitch = euler_angles(1);
+				msg.yaw = euler_angles(2);
 
-					// lastly, roll- and yawspeed have to be swaped
-					float helper = att.rollspeed;
-					msg.rollspeed = -att.yawspeed;
-					msg.yawspeed = helper;
-
-				}
+				// lastly, roll- and yawspeed have to be swaped
+				float helper = att.rollspeed;
+				msg.rollspeed = -att.yawspeed;
+				msg.yawspeed = helper;
 			}
 			
 			mavlink_msg_attitude_send_struct(_mavlink->get_channel(), &msg);
