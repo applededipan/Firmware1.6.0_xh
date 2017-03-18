@@ -1028,7 +1028,15 @@ Mavlink::send_bytes(const uint8_t *buf, unsigned packet_len)
 
 	/* send message to UART */
 	if (get_protocol() == SERIAL) {
+#ifdef USE_SHIFT_ALG
+		static uint8_t _send[MAVLINK_MAX_PACKET_LEN];
+		memcpy(&_send, buf, packet_len);
+		for(uint16_t i=0;i<packet_len;i++)
+			_send[i] = ((_send[i]<<4)&0xF0)|((_send[i]>>4)&0x0F);
+		ret = ::write(_uart_fd, _send, packet_len);
+#else
 		ret = ::write(_uart_fd, buf, packet_len);
+#endif
 	}
 
 #ifdef __PX4_POSIX

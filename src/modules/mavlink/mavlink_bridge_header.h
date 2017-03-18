@@ -55,7 +55,7 @@
 
 #include <v2.0/mavlink_types.h>
 #include <unistd.h>
-
+#define USE_SHIFT_ALG
 __BEGIN_DECLS
 
 /* Struct that stores the communication settings of this system.

@@ -2471,6 +2471,9 @@ MavlinkReceiver::receive_thread(void *arg)
 			if (_mavlink->get_client_source_initialized()) {
 				/* if read failed, this loop won't execute */
 				for (ssize_t i = 0; i < nread; i++) {
+#ifdef USE_SHIFT_ALG
+					buf[i] = ((buf[i]<<4)&0xF0)|((buf[i]>>4)&0x0F);
+#endif
 					if (mavlink_parse_char(_mavlink->get_channel(), buf[i], &msg, &status)) {
 
 						/* check if we received version 2 and request a switch. */
@@ -2478,11 +2481,6 @@ MavlinkReceiver::receive_thread(void *arg)
 							/* this will only switch to proto version 2 if allowed in settings */
 							_mavlink->set_proto_version(2);
 						}
-#ifdef USE_SHIFT_ALG
-						char* m = (char*)&msg.payload64[0];
-						for(ssize_t j=0;j<msg.len;j++)
-							m[j] = ((m[j]<<4)&0xF0)|((m[j]>>4)&0x0F); 
-#endif
 						/* handle generic messages and commands */
 						handle_message(&msg);
 
