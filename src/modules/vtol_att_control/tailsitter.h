@@ -77,6 +77,7 @@ private:
 		float vtol_thr_ftrans_max;
 		float back_trans_vel_threshold;
 		float mpc_thr_min;
+		float mpc_thr_hover;
 	} _params_tailsitter;
 
 	struct {
@@ -93,6 +94,7 @@ private:
 		param_t vtol_thr_ftrans_max;
 		param_t back_trans_vel_threshold;
 		param_t mpc_thr_min;
+		param_t mpc_thr_hover;
 	} _params_handles_tailsitter;
 
 	enum vtol_mode {
