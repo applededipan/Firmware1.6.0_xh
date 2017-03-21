@@ -76,6 +76,7 @@ private:
 		float vtol_fw_yaw_scale;     /**< VTOL yaw scale > */
 		float vtol_thr_ftrans_max;
 		float back_trans_vel_threshold;
+		float back_trans_descend;
 		float mpc_thr_min;
 		float mpc_thr_hover;
 	} _params_tailsitter;
@@ -93,6 +94,7 @@ private:
 		param_t vtol_fw_yaw_scale;
 		param_t vtol_thr_ftrans_max;
 		param_t back_trans_vel_threshold;
+		param_t back_trans_descend;
 		param_t mpc_thr_min;
 		param_t mpc_thr_hover;
 	} _params_handles_tailsitter;
@@ -104,6 +106,8 @@ private:
 		TRANSITION_BACK_P1,		/**< vtol is in back transition part1 mode */
         TRANSITION_BACK_P2,     /**< vtol is in back transition part2 mode */
         TRANSITION_BACK_P3,     /**< vtol is in back transition part3 mode */
+        TRANSITION_BACK_P4,     /**< vtol is in back transition part2 mode */
+        TRANSITION_BACK_P5,     /**< vtol is in back transition part3 mode */
 		FW_MODE					/**< vtol is in fixed wing mode */
 	};
 
