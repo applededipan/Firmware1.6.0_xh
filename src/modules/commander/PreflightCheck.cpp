@@ -322,6 +322,38 @@ static bool gyroCheck(orb_advert_t *mavlink_log_pub, unsigned instance, bool opt
 		goto out;
 	}
 
+  if ( instance == 0) {
+ 		 ret = h.ioctl(GYROIOCGADIZERO,0);
+ 		 
+  	 if (ret != OK) {
+  				if (report_fail) {
+							mavlink_log_critical(mavlink_log_pub, "PREFLIGHT FAIL: ADI GYRO ZERO SET FAILED!");
+							uint8_t x,y,z;
+  						x = ret & 0x01;
+  						y = ret & 0x02;
+  						z = ret & 0x04;
+  						if (x || y || z) {
+  							sprintf(s,"ADI gyro out of error times:");
+  							if (x) strcat(s,"x ");
+  							if (y) strcat(s,"y ");
+  							if (z) strcat(s,"z ");
+  							mavlink_log_critical(mavlink_log_pub, "%s",s);
+  						}
+  						x = ret & 0x10;
+  						y = ret & 0x20;
+  						z = ret & 0x40;
+  						if (x || y || z) {
+  							sprintf(s,"ADI gyro out of range:");
+  							if (x) strcat(s,"x ");
+  							if (y) strcat(s,"y ");
+  							if (z) strcat(s,"z ");
+  							mavlink_log_critical(mavlink_log_pub, "%s",s);
+  						}	
+					}
+					success = false;
+					goto out;
+ 		 }
+	}
 out:
 	DevMgr::releaseHandle(h);
 	return success;

@@ -244,6 +244,8 @@ private:
 	uint16_t		_last_accel[3];
 	uint16_t  _gyro_zero[3];
 	uint16_t  _sample_times;
+	uint8_t   _adi_err_times;
+	uint8_t   _adi_err_codes;
 	bool			_got_duplicate;
 
 	/**
@@ -537,6 +539,8 @@ MPU6000::MPU6000(device::Device *interface, const char *path_accel, const char *
 	_last_accel{},
 	_gyro_zero{2048,2048,2048},
 	_sample_times(0),
+	_adi_err_times(0),
+	_adi_err_codes(0),
 	_got_duplicate(false)
 {
 	// disable debug() calls
@@ -801,17 +805,17 @@ int MPU6000::reset()
 	write_checked_reg(MPUREG_GYRO_CONFIG, BITS_FS_2000DPS);
 	usleep(1000);
 
-	if(_device_type != ADXRS620){
-	// correct gyro scale factors
-	// scale to rad/s in SI units
-	// 2000 deg/s = (2000/180)*PI = 34.906585 rad/s
-	// scaling factor:
-	// 1/(2^15)*(2000/180)*PI
-	_gyro_range_scale = (0.0174532 / 16.4);//1.0f / (32768.0f * (2000.0f / 180.0f) * M_PI_F);
-	_gyro_range_rad_s = (2000.0f / 180.0f) * M_PI_F;
+	if (_device_type != ADXRS620) {
+		// correct gyro scale factors
+		// scale to rad/s in SI units
+		// 2000 deg/s = (2000/180)*PI = 34.906585 rad/s
+		// scaling factor:
+		// 1/(2^15)*(2000/180)*PI
+		_gyro_range_scale = (0.0174532 / 16.4);//1.0f / (32768.0f * (2000.0f / 180.0f) * M_PI_F);
+		_gyro_range_rad_s = (2000.0f / 180.0f) * M_PI_F;
 
-	}else{
-			_gyro_range_scale =  0.0035517;
+	} else {
+			_gyro_range_scale =  ADXRS620_RANG_SCALE;
 			_gyro_range_rad_s = (300.0f / 180.0f) * M_PI_F;
 	}
 
@@ -1631,6 +1635,12 @@ MPU6000::gyro_ioctl(struct file *filp, int cmd, unsigned long arg)
 
 	case GYROIOCGEXTERNAL:
 		return _interface->ioctl(cmd, dummy);
+		
+	case GYROIOCGADIZERO:
+		if(_device_type != ADXRS620)
+			return OK;
+		else
+			return _adi_err_codes;
 
 	default:
 		/* give it to the superclass */
@@ -1870,10 +1880,12 @@ void
 MPU6000::_set_adxrs620_zero(void)
 {
 		int16_t  x_rate = 0,y_rate = 0,z_rate = 0;
-	  bool motion = 0;
+	  bool motion[3];
 	  warn("ADI gyro calibration, please don't move!");
-	  while (_sample_times < ADI_SAMPLE_TIMES) {
-	  	motion = 0;
+	  while (_sample_times < ADI_SAMPLE_TIMES && _adi_err_times < ADI_ERROR_TIMES) {
+	  	motion[0] = 0;
+	  	motion[1] = 0;
+	  	motion[2] = 0;
 			x_rate = sample(ADXRS620_X_CHANNL);
 			y_rate = sample(ADXRS620_Y_CHANNL);
 			z_rate = sample(ADXRS620_Z_CHANNL);
@@ -1884,28 +1896,53 @@ MPU6000::_set_adxrs620_zero(void)
 				_sample_times++;
 		  } else {
 		  	 if (fabs(x_rate - _gyro_zero[0]) > ADI_ERROR_RANGE)
-		  	 		motion = 1;
+		  	 		motion[0] = 1;
 		  	 if (fabs(y_rate - _gyro_zero[1]) > ADI_ERROR_RANGE)
-		  	 		motion = 1;
+		  	 		motion[1] = 1;
 		  	 if (fabs(z_rate - _gyro_zero[2]) > ADI_ERROR_RANGE)
-		  	 		motion = 1;
-		  	 if (motion == 0) {
+		  	 		motion[2] = 1;
+		  	 if (!motion[0] && !motion[1] && !motion[2]) {
 		  	 		_gyro_zero[0] = 0.9f*_gyro_zero[0] + 0.1f*x_rate;
 		  			_gyro_zero[1] = 0.9f*_gyro_zero[1] + 0.1f*y_rate;
 		  	    _gyro_zero[2] = 0.9f*_gyro_zero[2] + 0.1f*z_rate;
 		  	    _sample_times++;
 		  	} else { 
 		  		_sample_times = 0; 
+		  		_adi_err_times++;
+		  		if (motion[0])
+		  			_adi_err_codes |= 0x01;
+		  		if (motion[1])
+		  			_adi_err_codes |= 0x02;
+		  		if (motion[2])
+		  			_adi_err_codes |= 0x04;
 		  		warn("Stay still, retry....!");
 		  	}
 		  }
 			usleep(ADI_SAMPLE_INTERVAL);
 		}
+		
+		/* check error times whether more than error line */
+		if (_adi_err_times < ADI_ERROR_TIMES) {
+				_adi_err_times = 0;
+				_adi_err_codes = 0;
+		}
+		
 		// if greater than 2/3 of full scale or less than 1/3 of full scale
-		if(_gyro_zero[0]>2867 || _gyro_zero[1]>2867 || _gyro_zero[2]>2867 || _gyro_zero[0]<1228 || _gyro_zero[1]<1228 || _gyro_zero[2]<1228 )
-			warn("ADI zero point err:%d,%d,%d",_gyro_zero[0],_gyro_zero[1],_gyro_zero[2]);
-		else
-			PX4_INFO("Set zero rate x rate:%d,y rate:%d,z rate:%d",_gyro_zero[0],_gyro_zero[1],_gyro_zero[2]);
+		if (_gyro_zero[0]>2867 || _gyro_zero[0]<1228) {
+			_adi_err_codes |= 0x10;
+			_adi_err_times = ADI_ERROR_TIMES;
+		}
+		
+		if (_gyro_zero[1]>2867 || _gyro_zero[1]<1228) {
+			_adi_err_codes |= 0x20;
+			_adi_err_times = ADI_ERROR_TIMES;
+		}
+		
+		if (_gyro_zero[2]>2867 || _gyro_zero[2]<1228) {
+			_adi_err_codes |= 0x40;
+			_adi_err_times = ADI_ERROR_TIMES;
+		}
+		PX4_INFO("Set zero rate x rate:%d,y rate:%d,z rate:%d",_gyro_zero[0],_gyro_zero[1],_gyro_zero[2]);
 }
 
 void
@@ -2003,7 +2040,7 @@ MPU6000::measure()
 	 * Fetch the full set of measurements from the MPU6000 in one pass.
 	 */
 
-	if(_device_type == ADXRS620){
+	if (_device_type == ADXRS620) {
 	       gx =  sample(ADXRS620_X_CHANNL) - _gyro_zero[0];
 	       gy =  sample(ADXRS620_Y_CHANNL) - _gyro_zero[1];
 	       gz =  sample(ADXRS620_Z_CHANNL) - _gyro_zero[2];
@@ -2046,11 +2083,12 @@ MPU6000::measure()
 	report.accel_z = int16_t_from_bytes(mpu_report.accel_z);
 
 	report.temp = int16_t_from_bytes(mpu_report.temp);
-   if(_device_type  !=  ADXRS620 ){
+	
+   if (_device_type  !=  ADXRS620 ) {
 	   report.gyro_x = int16_t_from_bytes(mpu_report.gyro_x);
 	   report.gyro_y = int16_t_from_bytes(mpu_report.gyro_y);
 	   report.gyro_z = int16_t_from_bytes(mpu_report.gyro_z);
-   }else{
+   } else {
 	       report.gyro_x = gx;
 		   report.gyro_y = gy;
 		   report.gyro_z = gz;
@@ -2089,7 +2127,8 @@ MPU6000::measure()
 	 */
 	int16_t accel_xt = report.accel_y;
 	int16_t accel_yt = ((report.accel_x == -32768) ? 32767 : -report.accel_x);
-    if(_device_type != ADXRS620){
+		
+    if (_device_type != ADXRS620) {
     	int16_t gyro_xt = report.gyro_y;
     	int16_t gyro_yt = ((report.gyro_x == -32768) ? 32767 : -report.gyro_x);
     	report.gyro_x = gyro_xt;
@@ -2190,10 +2229,10 @@ MPU6000::measure()
 	yraw_f = report.gyro_y;
 	zraw_f = report.gyro_z;
 
-	if(_device_type != ADXRS620){
+	if (_device_type != ADXRS620) {
 		// apply user specified rotation
 		rotate_3f(_rotation, xraw_f, yraw_f, zraw_f);
-	}	else{
+	} else {
 		rotate_3f(ROTATION_YAW_180, xraw_f, yraw_f, zraw_f);
 #ifdef HWV1_4
 		xraw_f = -xraw_f;

@@ -109,5 +109,7 @@ struct gyro_calibration_s {
 /** determine if hardware is external or onboard */
 #define GYROIOCGEXTERNAL	_GYROIOC(12)
 
+/** get the adi error code */
+#define GYROIOCGADIZERO 	_GYROIOC(99)
 
 #endif /* _DRV_GYRO_H */

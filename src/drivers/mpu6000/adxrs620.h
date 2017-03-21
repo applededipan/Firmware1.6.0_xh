@@ -79,9 +79,12 @@
 #define ADXRS620_Z_CHANNL    	 15
 #define ADXRS620_SEN            0.006f
 
+#define ADXRS620_RANG_SCALE    0.0035517
+
 #define ADI_SAMPLE_TIMES       20
 #define ADI_SAMPLE_INTERVAL    50000
-#define ADI_ERROR_RANGE        12
+#define ADI_ERROR_RANGE        20
+#define ADI_ERROR_TIMES        50
 
 #define ADXRS620 620
 #define HWV1_4

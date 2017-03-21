@@ -187,19 +187,20 @@ then
 	if hmc5883 -C -T -S -R 2 start
 	then
 	fi
-		# mpu6000 gyro not use and adi use
-		if param greater SENS_EN_ADI_MPU 0
+
+	# mpu6000 gyro not use and adi use
+	if param greater SENS_EN_ADI_MPU 0
+	then
+		if mpu6000 -T 620 start
 		then
-			if mpu6000 -T 620 start
-			then
-				#echo "INFO  [init] ADXRS620 Start"
-			fi
-		else
-			if mpu6000 start
-			then
-				#echo "INFO  [init] MPU6000 Start"
-			fi
+			#echo "INFO  [init] ADXRS620 Start"
 		fi
+	else
+		if mpu6000 start
+		then
+			#echo "INFO  [init] MPU6000 Start"
+		fi
+	fi
 
 	# Start either MPU9250 or BMI160. They are both connected to the same SPI bus and use the same
 	# chip select pin. There are different boards with either one of them and the WHO_AM_I register
