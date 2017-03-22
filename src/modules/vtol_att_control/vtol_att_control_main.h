@@ -93,6 +93,8 @@
 #include <uORB/topics/vehicle_rates_setpoint.h>
 #include <uORB/topics/vtol_vehicle_status.h>
 #include <uORB/topics/vehicle_global_position.h>
+#include <uORB/topics/vehicle_status.h>
+#include <uORB/topics/home_position.h>
 #include <uORB/uORB.h>
 
 #include "tiltrotor.h"
@@ -132,9 +134,12 @@ public:
 	struct vehicle_local_position_s 		*get_local_pos() {return &_local_pos;}
 	struct airspeed_s 				*get_airspeed() {return &_airspeed;}
 	struct battery_status_s 			*get_batt_status() {return &_batt_status;}
+	struct vehicle_command_s			*get_vehicle_cmd() {return &_vehicle_cmd;}
 	struct tecs_status_s 				*get_tecs_status() {return &_tecs_status;}
 	struct vehicle_land_detected_s			*get_land_detected() {return &_land_detected;}
 	struct vehicle_global_position_s	*get_global_pos() {return &_global_pos;}		/**< global position */
+	struct vehicle_status_s				*get_vehicle_status() {return &_vehicle_status;}
+	struct home_position_s				*get_home_position()  {return &_home_position;}
 	struct Params 					*get_params() {return &_params;}
 
 
@@ -162,6 +167,8 @@ private:
 	int	_tecs_status_sub;
 	int	_land_detected_sub;
 	int _global_pos_sub;
+	int _vehicle_status_sub;
+	int _home_position_sub;
 	int 	_actuator_inputs_mc;	//topic on which the mc_att_controller publishes actuator inputs
 	int 	_actuator_inputs_fw;	//topic on which the fw_att_controller publishes actuator inputs
 
@@ -195,6 +202,8 @@ private:
 	struct tecs_status_s				_tecs_status;
 	struct vehicle_land_detected_s			_land_detected;
 	struct vehicle_global_position_s	_global_pos;		/**< global position */
+	struct vehicle_status_s				_vehicle_status;
+	struct home_position_s				_home_position;
 	Params _params;	// struct holding the parameters
 
 	struct {
@@ -252,6 +261,8 @@ private:
 	void		handle_command();
 	void 		publish_att_sp();
 	void 		vehicle_global_pos_poll();
+	void		vehicle_status_poll();
+	void		home_position_poll();
 };
 
 #endif

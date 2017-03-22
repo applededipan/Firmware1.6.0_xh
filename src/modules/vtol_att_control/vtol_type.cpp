@@ -67,10 +67,13 @@ VtolType::VtolType(VtolAttitudeControl *att_controller) :
 	_local_pos = _attc->get_local_pos();
 	_airspeed = _attc->get_airspeed();
 	_batt_status = _attc->get_batt_status();
+	_vehicle_cmd = _attc->get_vehicle_cmd();
 	_tecs_status = _attc->get_tecs_status();
 	_land_detected = _attc->get_land_detected();
 	_params = _attc->get_params();
 	_global_pos = _attc->get_global_pos(); 
+	_vehicle_status = _attc->get_vehicle_status();
+	_home_position = _attc->get_home_position();
 	flag_idle_mc = true;
 }
 

@@ -166,9 +166,12 @@ protected:
 	struct vehicle_local_position_s			*_local_pos;
 	struct airspeed_s 				*_airspeed;					// airspeed
 	struct battery_status_s 			*_batt_status; 				// battery status
+	struct vehicle_command_s			*_vehicle_cmd;
 	struct tecs_status_s				*_tecs_status;
 	struct vehicle_land_detected_s			*_land_detected;
 	struct vehicle_global_position_s              *_global_pos; 
+	struct vehicle_status_s						*_vehicle_status;
+	struct home_position_s						*_home_position;
 	struct Params 					*_params;
 
 	bool flag_idle_mc = true;		//false = "idle is set for fixed wing mode"; true = "idle is set for multicopter mode"

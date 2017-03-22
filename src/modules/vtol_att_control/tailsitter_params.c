@@ -144,3 +144,14 @@ PARAM_DEFINE_FLOAT(VT_BACK_VEL, 5.0f);
  * @group VTOL Attitude Control
  */
 PARAM_DEFINE_FLOAT(VT_BACK_DESCEND, 3.0f);
+
+/**
+ * alt during back transition
+ *
+ * @unit norm
+ * @min 0.0
+ * @max 100.0
+ * @increment 0.1
+ * @group VTOL Attitude Control
+ */
+PARAM_DEFINE_FLOAT(VT_BACK_ALT, 10.0f);

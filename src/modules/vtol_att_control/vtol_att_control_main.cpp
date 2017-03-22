@@ -82,6 +82,7 @@ VtolAttitudeControl::VtolAttitudeControl() :
 	_tecs_status_sub(-1),
 	_land_detected_sub(-1),
 	_global_pos_sub(-1),
+	_home_position_sub(-1),
 	//init publication handlers
 	_actuators_0_pub(nullptr),
 	_actuators_1_pub(nullptr),
@@ -115,6 +116,8 @@ VtolAttitudeControl::VtolAttitudeControl() :
 	memset(&_tecs_status, 0, sizeof(_tecs_status));
 	memset(&_land_detected, 0, sizeof(_land_detected));
     memset(&_global_pos, 0, sizeof(_global_pos)); 
+    memset(&_vehicle_status, 0, sizeof(_vehicle_status));
+    memset(&_home_position, 0, sizeof(_home_position));
 	_params.idle_pwm_mc = PWM_DEFAULT_MIN;
 	_params.vtol_motor_count = 0;
 	_params.vtol_fw_permanent_stab = 0;
@@ -464,6 +467,36 @@ VtolAttitudeControl::vehicle_global_pos_poll()
 }
 
 /**
+* Check for vehicle status updates.
+*/
+void
+VtolAttitudeControl::vehicle_status_poll()
+{
+	bool updated;
+
+	orb_check(_vehicle_status_sub, &updated);
+
+	if (updated) {
+		orb_copy(ORB_ID(vehicle_status), _vehicle_status_sub , &_vehicle_status);
+	}
+}
+
+/**
+* Check for home position updates.
+*/
+void
+VtolAttitudeControl::home_position_poll()
+{
+	bool updated;
+
+	orb_check(_home_position_sub, &updated);
+
+	if (updated) {
+		orb_copy(ORB_ID(home_position), _home_position_sub , &_home_position);
+	}
+}
+
+/**
 * Check received command
 */
 void
@@ -673,6 +706,7 @@ void VtolAttitudeControl::task_main()
 	_tecs_status_sub = orb_subscribe(ORB_ID(tecs_status));
 	_land_detected_sub = orb_subscribe(ORB_ID(vehicle_land_detected));
     _global_pos_sub = orb_subscribe(ORB_ID(vehicle_global_position)); 
+    _vehicle_status_sub = orb_subscribe(ORB_ID(vehicle_status));
 	_actuator_inputs_mc    = orb_subscribe(ORB_ID(actuator_controls_virtual_mc));
 	_actuator_inputs_fw    = orb_subscribe(ORB_ID(actuator_controls_virtual_fw));
 

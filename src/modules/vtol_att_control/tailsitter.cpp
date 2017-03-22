@@ -38,7 +38,7 @@
 * @author David Vorsin     <davidvorsin@gmail.com>
 *
 */
-
+#include <navigator/navigation.h>
 #include "tailsitter.h"
 #include "vtol_att_control_main.h"
 #include <systemlib/mavlink_log.h> // apple20170309
@@ -87,6 +87,7 @@ Tailsitter::Tailsitter(VtolAttitudeControl *attc) :
 	_params_handles_tailsitter.mpc_thr_hover = param_find("MPC_THR_HOVER");
 	_params_handles_tailsitter.back_trans_vel_threshold = param_find("VT_BACK_VEL");//
 	_params_handles_tailsitter.back_trans_descend = param_find("VT_BACK_DESCEND");
+	_params_handles_tailsitter.back_trans_alt = param_find("VT_BACK_ALT");
 }
 
 Tailsitter::~Tailsitter()
@@ -145,6 +146,10 @@ Tailsitter::parameters_update()
 	/* vtol back transition descend */
 	param_get(_params_handles_tailsitter.back_trans_descend, &v);
 	_params_tailsitter.back_trans_descend = math::constrain(v, 0.0f, 20.0f);
+
+	/* vtol back transition alt */
+	param_get(_params_handles_tailsitter.back_trans_alt, &v);
+	_params_tailsitter.back_trans_alt = math::constrain(v, 0.0f, 100.0f);
 	
 	/* minium thrust in auto thrust control */
 	param_get(_params_handles_tailsitter.mpc_thr_min, &v);
@@ -190,7 +195,14 @@ void Tailsitter::update_vtol_state()
 			break;
 
 		case FW_MODE:
-			_vtol_schedule.flight_mode = TRANSITION_BACK_P1;
+			if (_vehicle_cmd->command == NAV_CMD_VTOL_LAND) {
+				mavlink_log_info(&_mavlink_log_pub, "apple: in vtol land \n"); //apple
+				_vtol_schedule.flight_mode = TRANSITION_BACK_P1;
+
+			} else {
+				_vtol_schedule.flight_mode = TRANSITION_BACK_P3;
+			}
+
 			_vtol_schedule.transition_start = hrt_absolute_time();
 			t_prev = hrt_absolute_time();
 			break;
@@ -210,9 +222,11 @@ void Tailsitter::update_vtol_state()
         case TRANSITION_BACK_P2:
             // check if descending sufficiently fast and/or close to landing altitude
             // mavlink_log_info(&_mavlink_log_pub, "P2:glo_v = %3.2f loc_v = %3.3f \n", (double)_global_pos->vel_d, (double)_local_pos->vz); //apple
-            if ((float)hrt_elapsed_time(&_vtol_schedule.transition_start) >= (_params_tailsitter.back_trans_dur * 1000000.0f + 2000000.0f)
-              || ((_global_pos->vel_d > _params_tailsitter.back_trans_descend || _local_pos->vz > _params_tailsitter.back_trans_descend)
-                 && (float)hrt_elapsed_time(&_vtol_schedule.transition_start) >= _params_tailsitter.back_trans_dur * 1000000.0f)) {
+			// if ((float)hrt_elapsed_time(&_vtol_schedule.transition_start) >= (_params_tailsitter.back_trans_dur * 1000000.0f + 2000000.0f)
+			//   || ((_global_pos->vel_d > _params_tailsitter.back_trans_descend || _local_pos->vz > _params_tailsitter.back_trans_descend)
+			//	 && (float)hrt_elapsed_time(&_vtol_schedule.transition_start) >= _params_tailsitter.back_trans_dur * 1000000.0f)) {
+        	mavlink_log_info(&_mavlink_log_pub, "P2:alt =  %5.2f \n", (double)(_global_pos->alt - _home_position->alt)); //apple
+        	if ((_global_pos->alt - _home_position->alt) < (_global_pos->vel_d * _params_tailsitter.back_trans_dur + _params_tailsitter.back_trans_alt)) { // not sure
                 _vtol_schedule.flight_mode = TRANSITION_BACK_P3;
                 _vtol_schedule.transition_start = hrt_absolute_time();
                 t_prev = hrt_absolute_time();
