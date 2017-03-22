@@ -171,7 +171,7 @@
 #define ADC_BATTERY_CURRENT_CHANNEL		3
 #define ADC_5V_RAIL_SENSE				11
 #define ADC_RC_RSSI_CHANNEL				11
-
+#define ADC_HYBRID_CURRENT_CHANNEL		10
 /* Define Battery 1 Voltage Divider and A per V
  */
 

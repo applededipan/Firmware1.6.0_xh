@@ -188,7 +188,7 @@ set(config_module_list
 	#examples/fixedwing_control
 
 	# Hybrid
-	module/hybrid
+	modules/hybrid
 	# Hardware test
 	#examples/hwtest
 

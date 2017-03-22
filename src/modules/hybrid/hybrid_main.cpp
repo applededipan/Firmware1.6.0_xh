@@ -348,6 +348,7 @@ void Hybrid::batt_orb_read(float *V,float *I)
 			*V = _battery_status.voltage_v ;
 			*I = _battery_status.current_a ;
 		}
+
 	} else {
 		_battery_status_sub = orb_subscribe(ORB_ID(battery_status));
 	}
@@ -359,7 +360,7 @@ void Hybrid::task_main()
 	printf("yes, this is hybrid_main.cpp\n");
 	//	   return;
 
-	float V,I;
+	float V, I;
 	adc_init();
 	while (!_task_should_exit) {
 		/**
@@ -419,7 +420,7 @@ void Hybrid::task_main()
 		}
 //		printf("hybrid_main  %.7f   %.7f    %.7f\n", (double)V,(double)I,(double)_actuators.control[6]);
 		perf_end(_loop_perf);
-
+		PX4_INFO("hello, this is hybrid thread! \n");
 		/* Thread sleep*/
 		usleep(100000);
 	}
@@ -428,7 +429,7 @@ void Hybrid::task_main()
 
 int hybrid_main(int argc, char *argv[])
 {
-    PX4_INFO("Hello Sky!");
+    PX4_INFO("Hello Hybrid!");
 
 	if (argc < 2) {
 		PX4_INFO("usage: hybrid {start|stop|status |value}");
@@ -442,9 +443,9 @@ int hybrid_main(int argc, char *argv[])
 			return 0;
 		}
 
-		hybrid::g_Hybrid = new  Hybrid ;
+		hybrid::g_Hybrid = new  Hybrid;
 
-		if (hybrid::g_Hybrid  == nullptr) {
+		if (hybrid::g_Hybrid == nullptr) {
 			PX4_ERR("alloc failed");
 			return 1;
 		}
@@ -460,20 +461,20 @@ int hybrid_main(int argc, char *argv[])
 	}
 
 	if (!strcmp(argv[1], "stop")) {
-		if (hybrid::g_Hybrid  == nullptr) {
+		if (hybrid::g_Hybrid == nullptr) {
 			PX4_INFO("not running");
 			return 1;
 		}
 
 		hybrid::g_Hybrid->_task_should_exit = true;
 		delete hybrid::g_Hybrid ;
-		hybrid::g_Hybrid  = nullptr;
+		hybrid::g_Hybrid = nullptr;
 		return 0;
 	}
 
 	if (!strcmp(argv[1], "status")) {
-		if (hybrid::g_Hybrid ) {
-			hybrid::g_Hybrid ->print_status();
+		if (hybrid::g_Hybrid) {
+			hybrid::g_Hybrid->print_status();
 			return 0;
 
 		} else {
@@ -483,21 +484,21 @@ int hybrid_main(int argc, char *argv[])
 	}
 
 	if (!strcmp(argv[1], "value")) {
-		if (hybrid::g_Hybrid ) {
+		if (hybrid::g_Hybrid) {
 			if (!strcmp(argv[2], "-1")) {
-				hybrid::g_Hybrid ->value_pwm = -1;
+				hybrid::g_Hybrid->value_pwm = -1;
 
 			} else if (!strcmp(argv[2], "0")) {
-				hybrid::g_Hybrid ->value_pwm = 0;
+				hybrid::g_Hybrid->value_pwm = 0;
 
 			} else if (!strcmp(argv[2], "1")) {
-				hybrid::g_Hybrid ->value_pwm = 1;
+				hybrid::g_Hybrid->value_pwm = 1;
 
 			} else if (!strcmp(argv[2], "-0.5")) {
-				hybrid::g_Hybrid ->value_pwm = -0.5;
+				hybrid::g_Hybrid->value_pwm = -0.5;
 
 			} else if (!strcmp(argv[2], "0.5")) {
-				hybrid::g_Hybrid ->value_pwm = 0.5;
+				hybrid::g_Hybrid->value_pwm = 0.5;
 			}
 			return 0;
 
