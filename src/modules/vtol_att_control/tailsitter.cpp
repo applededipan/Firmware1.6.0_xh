@@ -209,7 +209,7 @@ void Tailsitter::update_vtol_state()
         case TRANSITION_BACK_P1:
         case TRANSITION_BACK_P2:
             // check if descending sufficiently fast and/or close to landing altitude
-            mavlink_log_info(&_mavlink_log_pub, "P2:glo_v = %3.2f loc_v = %3.3f \n", (double)_global_pos->vel_d, (double)_local_pos->vz); //apple
+            // mavlink_log_info(&_mavlink_log_pub, "P2:glo_v = %3.2f loc_v = %3.3f \n", (double)_global_pos->vel_d, (double)_local_pos->vz); //apple
             if ((float)hrt_elapsed_time(&_vtol_schedule.transition_start) >= (_params_tailsitter.back_trans_dur * 1000000.0f + 2000000.0f)
               || ((_global_pos->vel_d > _params_tailsitter.back_trans_descend || _local_pos->vz > _params_tailsitter.back_trans_descend)
                  && (float)hrt_elapsed_time(&_vtol_schedule.transition_start) >= _params_tailsitter.back_trans_dur * 1000000.0f)) {
@@ -236,7 +236,7 @@ void Tailsitter::update_vtol_state()
 
         case TRANSITION_BACK_P4:
 			// check if climbing is slowed down sufficiently or three seconds have passed
-			mavlink_log_info(&_mavlink_log_pub, "P4:glo_v = %3.2f loc_v = %3.3f \n", (double)_global_pos->vel_d, (double)_local_pos->vz); //apple
+			// mavlink_log_info(&_mavlink_log_pub, "P4:glo_v = %3.2f loc_v = %3.3f \n", (double)_global_pos->vel_d, (double)_local_pos->vz); //apple
 			if ((float)hrt_elapsed_time(&_vtol_schedule.transition_start) >= 3000000.0f
 			   || _global_pos->vel_d > -_params_tailsitter.back_trans_vel_threshold || _local_pos->vz > -_params_tailsitter.back_trans_vel_threshold) {
 				_vtol_schedule.flight_mode = TRANSITION_BACK_P5;
