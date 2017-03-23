@@ -196,7 +196,10 @@ void Tailsitter::update_vtol_state()
 
 		case FW_MODE:
 			mavlink_log_info(&_mavlink_log_pub, "apple: cmd = %d \n", (int)_vehicle_cmd->command); //apple
-			if (_vehicle_cmd->command == NAV_CMD_VTOL_LAND) {
+			if ((_vehicle_status->nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION)
+				&& (_vehicle_cmd->command == vehicle_command_s::VEHICLE_CMD_DO_VTOL_TRANSITION)
+				&& _position_setpoint_triplet->current.valid
+				&& _position_setpoint_triplet->current.type == position_setpoint_s::SETPOINT_TYPE_LAND) {
 				mavlink_log_info(&_mavlink_log_pub, "apple: in vtol land \n"); //apple
 				_vtol_schedule.flight_mode = TRANSITION_BACK_P1;
 

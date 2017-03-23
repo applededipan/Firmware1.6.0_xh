@@ -74,6 +74,7 @@ VtolType::VtolType(VtolAttitudeControl *att_controller) :
 	_global_pos = _attc->get_global_pos(); 
 	_vehicle_status = _attc->get_vehicle_status();
 	_home_position = _attc->get_home_position();
+	_position_setpoint_triplet = _attc->get_position_setpoint_triplet();
 	flag_idle_mc = true;
 }
 

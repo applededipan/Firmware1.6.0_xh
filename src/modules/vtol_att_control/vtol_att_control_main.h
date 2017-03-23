@@ -95,6 +95,7 @@
 #include <uORB/topics/vehicle_global_position.h>
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/topics/home_position.h>
+#include <uORB/topics/position_setpoint_triplet.h>
 #include <uORB/uORB.h>
 
 #include "tiltrotor.h"
@@ -132,7 +133,7 @@ public:
 	struct actuator_controls_s 			*get_actuators_fw_in() {return &_actuators_fw_in;}
 	struct actuator_armed_s 			*get_armed() {return &_armed;}
 	struct vehicle_local_position_s 		*get_local_pos() {return &_local_pos;}
-	struct airspeed_s 				*get_airspeed() {return &_airspeed;}
+	struct airspeed_s 					*get_airspeed() {return &_airspeed;}
 	struct battery_status_s 			*get_batt_status() {return &_batt_status;}
 	struct vehicle_command_s			*get_vehicle_cmd() {return &_vehicle_cmd;}
 	struct tecs_status_s 				*get_tecs_status() {return &_tecs_status;}
@@ -140,7 +141,8 @@ public:
 	struct vehicle_global_position_s	*get_global_pos() {return &_global_pos;}		/**< global position */
 	struct vehicle_status_s				*get_vehicle_status() {return &_vehicle_status;}
 	struct home_position_s				*get_home_position()  {return &_home_position;}
-	struct Params 					*get_params() {return &_params;}
+	struct position_setpoint_triplet_s	*get_position_setpoint_triplet() {return &_position_setpoint_triplet;}
+	struct Params 						*get_params() {return &_params;}
 
 
 private:
@@ -169,6 +171,7 @@ private:
 	int _global_pos_sub;
 	int _vehicle_status_sub;
 	int _home_position_sub;
+	int _position_setpoint_triplet_sub;
 	int 	_actuator_inputs_mc;	//topic on which the mc_att_controller publishes actuator inputs
 	int 	_actuator_inputs_fw;	//topic on which the fw_att_controller publishes actuator inputs
 
@@ -204,6 +207,7 @@ private:
 	struct vehicle_global_position_s	_global_pos;		/**< global position */
 	struct vehicle_status_s				_vehicle_status;
 	struct home_position_s				_home_position;
+	struct position_setpoint_triplet_s	_position_setpoint_triplet;
 	Params _params;	// struct holding the parameters
 
 	struct {
@@ -263,6 +267,7 @@ private:
 	void 		vehicle_global_pos_poll();
 	void		vehicle_status_poll();
 	void		home_position_poll();
+	void		position_setpoint_triplet_poll();
 };
 
 #endif

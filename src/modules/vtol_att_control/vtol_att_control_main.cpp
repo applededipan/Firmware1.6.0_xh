@@ -82,7 +82,9 @@ VtolAttitudeControl::VtolAttitudeControl() :
 	_tecs_status_sub(-1),
 	_land_detected_sub(-1),
 	_global_pos_sub(-1),
+	_vehicle_status_sub(-1),
 	_home_position_sub(-1),
+	_position_setpoint_triplet_sub(-1),
 	//init publication handlers
 	_actuators_0_pub(nullptr),
 	_actuators_1_pub(nullptr),
@@ -118,6 +120,7 @@ VtolAttitudeControl::VtolAttitudeControl() :
     memset(&_global_pos, 0, sizeof(_global_pos)); 
     memset(&_vehicle_status, 0, sizeof(_vehicle_status));
     memset(&_home_position, 0, sizeof(_home_position));
+    memset(&_position_setpoint_triplet, 0, sizeof(_position_setpoint_triplet));
 	_params.idle_pwm_mc = PWM_DEFAULT_MIN;
 	_params.vtol_motor_count = 0;
 	_params.vtol_fw_permanent_stab = 0;
@@ -497,6 +500,21 @@ VtolAttitudeControl::home_position_poll()
 }
 
 /**
+* Check for position setpoint updates.
+*/
+void
+VtolAttitudeControl::position_setpoint_triplet_poll()
+{
+	bool updated;
+
+	orb_check(_position_setpoint_triplet_sub, &updated);
+
+	if (updated) {
+		orb_copy(ORB_ID(position_setpoint_triplet), _position_setpoint_triplet_sub , &_position_setpoint_triplet);
+	}
+}
+
+/**
 * Check received command
 */
 void
@@ -707,6 +725,8 @@ void VtolAttitudeControl::task_main()
 	_land_detected_sub = orb_subscribe(ORB_ID(vehicle_land_detected));
     _global_pos_sub = orb_subscribe(ORB_ID(vehicle_global_position)); 
     _vehicle_status_sub = orb_subscribe(ORB_ID(vehicle_status));
+    _home_position_sub = orb_subscribe(ORB_ID(home_position));
+    _position_setpoint_triplet_sub = orb_subscribe(ORB_ID(position_setpoint_triplet));
 	_actuator_inputs_mc    = orb_subscribe(ORB_ID(actuator_controls_virtual_mc));
 	_actuator_inputs_fw    = orb_subscribe(ORB_ID(actuator_controls_virtual_fw));
 
@@ -786,6 +806,10 @@ void VtolAttitudeControl::task_main()
 		tecs_status_poll();
 		land_detected_poll();
         vehicle_global_pos_poll();
+        vehicle_status_poll();
+        home_position_poll();
+        position_setpoint_triplet_poll();
+
 		// update the vtol state machine which decides which mode we are in
 		_vtol_type->update_vtol_state();
 
