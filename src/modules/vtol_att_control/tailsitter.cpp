@@ -195,6 +195,7 @@ void Tailsitter::update_vtol_state()
 			break;
 
 		case FW_MODE:
+			mavlink_log_info(&_mavlink_log_pub, "apple: cmd = %d \n", (int)_vehicle_cmd->command); //apple
 			if (_vehicle_cmd->command == NAV_CMD_VTOL_LAND) {
 				mavlink_log_info(&_mavlink_log_pub, "apple: in vtol land \n"); //apple
 				_vtol_schedule.flight_mode = TRANSITION_BACK_P1;
@@ -280,6 +281,7 @@ void Tailsitter::update_vtol_state()
 			// initialise a front transition
 			_vtol_schedule.flight_mode 	= TRANSITION_FRONT_P1;
 			_vtol_schedule.transition_start = hrt_absolute_time();
+            t_prev = hrt_absolute_time();
 			break;
 
 		case FW_MODE:
