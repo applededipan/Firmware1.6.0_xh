@@ -240,7 +240,7 @@ void Tempcal::task_main()
 
 		for (unsigned i = 0; i < num_gyro; i++) {
 			if (_hot_soaked[i] && !_tempcal_complete[i]) {
-				double res[3][4] = {0.0f};
+				double res[3][4]; // = {0.0f};
 				P[i][0].fit(res[0]);
 				PX4_WARN("Result Gyro %d Axis 0: %.20f %.20f %.20f %.20f", i, (double)res[0][0], (double)res[0][1], (double)res[0][2],
 					 (double)res[0][3]);

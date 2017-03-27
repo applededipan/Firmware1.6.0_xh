@@ -201,7 +201,8 @@ private:
 		param_t alt_mode;
 		param_t opt_recover;
 		param_t pitch_tc;
-		param_t roll_tc;	
+		param_t roll_tc;
+		param_t yaw_auto_max; // apple 20170325
 	}		_params_handles;		/**< handles for interesting parameters */
 
 	struct {
@@ -225,6 +226,7 @@ private:
 		float acc_hor_max;
 		float vel_max_up;
 		float vel_max_down;
+		float yaw_auto_max; // apple 20170325
 		uint32_t alt_mode;
 
 		int opt_recover;
@@ -521,6 +523,7 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_params_handles.acc_hor_max = param_find("MPC_ACC_HOR_MAX");
 	_params_handles.alt_mode = param_find("MPC_ALT_MODE");
 	_params_handles.opt_recover = param_find("VT_OPT_RECOV_EN");
+	_params_handles.yaw_auto_max = param_find("MC_YAWAUTO_MAX"); // apple 20170325
 
 
 	_params_handles.pitch_tc = param_find("MC_PITCH_TC");
@@ -582,6 +585,7 @@ MulticopterPositionControl::parameters_update(bool force)
 		param_get(_params_handles.tko_speed, &_params.tko_speed);
 		param_get(_params_handles.tilt_max_land, &_params.tilt_max_land);
 		_params.tilt_max_land = math::radians(_params.tilt_max_land);
+		param_get(_params_handles.yaw_auto_max, &_params.yaw_auto_max); // apple 20170325)
 
 		float v;
 		uint32_t v_i;
@@ -1087,12 +1091,29 @@ MulticopterPositionControl::control_non_manual(float dt)
 	}
 
 	/* weather-vane mode for vtol: disable yaw control */
-//	if (_pos_sp_triplet.current.disable_mc_yaw_control == true) {
+	if (_pos_sp_triplet.current.disable_mc_yaw_control == true) {
 //		_att_sp.disable_mc_yaw_control = true;
-//
-//	} else {
-//		/* reset in case of setpoint updates */
-		_att_sp.disable_mc_yaw_control = false;
+
+	    // active weathervane by turning sideway from the wind -- MAO 2017/3/25
+	    float roll_sign = 1.0f;
+	    if (_att_sp.roll_body < 0.0f) {
+	        roll_sign = -1.0f;
+		}
+		
+	    if (_att_sp.pitch_body > 0.15f) {
+	        _att_sp.yaw_sp_move_rate = (_att_sp.pitch_body - 0.15f) * roll_sign;
+	    
+		} else if (_att_sp.pitch_body < -0.15f) {
+            _att_sp.yaw_sp_move_rate = (_att_sp.pitch_body + 0.15f) * roll_sign;
+	   
+	    } else {
+	        _att_sp.yaw_sp_move_rate = 0.0f;
+		}
+        _att_sp.yaw_sp_move_rate = math::constrain(_att_sp.yaw_sp_move_rate, -_params.yaw_auto_max, _params.yaw_auto_max); // apple 20170325
+        _att_sp.yaw_body = _wrap_pi(_att_sp.yaw_body + _att_sp.yaw_sp_move_rate * dt);
+	} // else {
+		/* reset in case of setpoint updates */
+		_att_sp.disable_mc_yaw_control = false; // always enable yaw attitude control MAO 2017/3/25
 //	}
 
 	// guard against any bad velocity values
