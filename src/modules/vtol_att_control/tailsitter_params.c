@@ -155,3 +155,11 @@ PARAM_DEFINE_FLOAT(VT_BACK_DESCEND, 3.0f);
  * @group VTOL Attitude Control
  */
 PARAM_DEFINE_FLOAT(VT_BACK_ALT, 10.0f);
+
+/**
+ * VTOL weathervane front
+ *
+ * @boolean
+ * @group VTOL Attitude Control
+ */
+PARAM_DEFINE_INT32(VT_WEATHERVANE_F, 0);

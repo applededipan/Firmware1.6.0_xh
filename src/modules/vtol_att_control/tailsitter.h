@@ -129,7 +129,6 @@ private:
 	float _pitch_transition_start;  // pitch angle at the start of transition (tailsitter)
 	float _roll_transition_start;   // roll angle at the start of transition (tailsitter)
 
-
 	/** should this anouncement stay? **/
 	perf_counter_t	_loop_perf;			/**< loop performance counter */
 	perf_counter_t	_nonfinite_input_perf;		/**< performance counter for non finite input */

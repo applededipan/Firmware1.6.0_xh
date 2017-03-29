@@ -327,6 +327,8 @@ VtolAttitudeControl::vehicle_attitude_poll()
 	if (updated) {
 		orb_copy(ORB_ID(vehicle_attitude), _v_att_sub, &_v_att);
 	}
+//	matrix::Eulerf euler = matrix::Quatf(_v_att.q);
+//	mavlink_log_info(&_mavlink_log_pub, "pitch = %5.2f \n", (double)euler.theta()); //apple
 }
 
 /**

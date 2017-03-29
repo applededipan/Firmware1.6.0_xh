@@ -185,7 +185,7 @@ void Tailsitter::update_vtol_state()
 	 * For the backtransition the pitch is controlled in MC mode again and switches to full MC control reaching the sufficient pitch angle.
 	*/
 
-	// matrix::Eulerf euler = matrix::Quatf(_v_att->q);
+	// matrix::Eulerf euler_ = matrix::Quatf(_v_att->q);
 	// float pitch = euler.theta();
 
 	if (_attc->is_fixed_wing_requested() == 0) {  // user switchig to MC mode
@@ -195,16 +195,15 @@ void Tailsitter::update_vtol_state()
 			break;
 
 		case FW_MODE:
-			// mavlink_log_info(&_mavlink_log_pub, "apple: cmd = %d \n", (int)_vehicle_cmd->command); //apple
 			if ((_vehicle_status->nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION)
 				&& (_vehicle_cmd->command == vehicle_command_s::VEHICLE_CMD_DO_VTOL_TRANSITION)
 				&& _position_setpoint_triplet->next.valid
 				&& _position_setpoint_triplet->next.type == position_setpoint_s::SETPOINT_TYPE_LAND) {
-				mavlink_log_info(&_mavlink_log_pub, "apple: in vtol land \n"); //apple
 				_vtol_schedule.flight_mode = TRANSITION_BACK_P1;
-
+	            _pitch_transition_start = _v_att_sp->pitch_body; // init pitch set point as in fixed wing mode
 			} else {
 				_vtol_schedule.flight_mode = TRANSITION_BACK_P3;
+                //_v_att_sp->pitch_body - M_PI_2_F; // init pitch set point as in rotary wing mode
 			}
 
 			_vtol_schedule.transition_start = hrt_absolute_time();
@@ -234,7 +233,7 @@ void Tailsitter::update_vtol_state()
                 _vtol_schedule.flight_mode = TRANSITION_BACK_P3;
                 _vtol_schedule.transition_start = hrt_absolute_time();
                 t_prev = hrt_absolute_time();
-                _pitch_transition_start = _v_att_sp->pitch_body - M_PI_2_F; // init pitch set point as in rotary wing mode
+                //_pitch_transition_start = euler_.theta();// _v_att_sp->pitch_body - M_PI_2_F; // init pitch set point as in rotary wing mode
             }
 
             break;
@@ -285,6 +284,7 @@ void Tailsitter::update_vtol_state()
 			_vtol_schedule.flight_mode 	= TRANSITION_FRONT_P1;
 			_vtol_schedule.transition_start = hrt_absolute_time();
             t_prev = hrt_absolute_time();
+            //_pitch_transition_start = _v_att_sp->pitch_body; // init pitch set point as in rotary wing mode
 			break;
 
 		case FW_MODE:
@@ -370,11 +370,14 @@ void Tailsitter::update_transition_state()
 
 	if (!_flag_was_in_trans_mode) {
 		// save desired heading for transition and last thrust value
+		matrix::Eulerf euler = matrix::Quatf(_v_att->q);
+		// float pitch = euler.theta();
 		_yaw_transition = _v_att_sp->yaw_body;
-		_pitch_transition_start = _v_att_sp->pitch_body;
-		_roll_transition_start = _v_att_sp->roll_body;
+		_pitch_transition_start = euler.theta();//_v_att_sp->pitch_body;
+		_roll_transition_start = euler.phi();//_v_att_sp->roll_body;
 		_thrust_transition_start = _v_att_sp->thrust;
 		_flag_was_in_trans_mode = true;
+		mavlink_log_info(&_mavlink_log_pub, "pitch_start = %5.2f \n", (double)_pitch_transition_start); //apple
 	}
 
 	if (_vtol_schedule.flight_mode == TRANSITION_FRONT_P1) {
@@ -384,10 +387,10 @@ void Tailsitter::update_transition_state()
                         (float)hrt_elapsed_time(&_vtol_schedule.transition_start) / (_params_tailsitter.front_trans_dur * 1000000.0f));
             _v_att_sp->pitch_body = math::constrain(_v_att_sp->pitch_body , PITCH_TRANSITION_FRONT_P1 - 0.2f ,
                                 _pitch_transition_start); */
-		_v_att_sp->pitch_body = _pitch_transition_start	- (fabsf((-_params_tailsitter.front_trans_pitch) - _pitch_transition_start) *
+		_v_att_sp->pitch_body = _pitch_transition_start	+ ((-_params_tailsitter.front_trans_pitch - _pitch_transition_start) *
 					(float)hrt_elapsed_time(&_vtol_schedule.transition_start) / (_params_tailsitter.front_trans_dur * 1000000.0f));
-		_v_att_sp->pitch_body = math::constrain(_v_att_sp->pitch_body , -_params_tailsitter.front_trans_pitch,
-								_pitch_transition_start);			
+//		_v_att_sp->pitch_body = math::constrain(_v_att_sp->pitch_body , -_params_tailsitter.front_trans_pitch,
+//								_pitch_transition_start);
 
 		/** create time dependant roll angle: start angle -> 0*/
 /*        _v_att_sp->roll_body = _roll_transition_start - _roll_transition_start * (float)hrt_elapsed_time(&_vtol_schedule.transition_start) / (_params_tailsitter.front_trans_dur * 1000000.0f);
@@ -407,7 +410,7 @@ void Tailsitter::update_transition_state()
 
 		/** create time dependant throttle signal higher than  in MC and growing untill  P2 switch speed reached */
 //		if (_ctrl_state->airspeed <= _params_tailsitter.airspeed_trans) {
-			_thrust_transition = _thrust_transition_start + (fabsf(_params_tailsitter.vtol_thr_ftrans_max * _thrust_transition_start) *
+			_thrust_transition = _thrust_transition_start + ((_params_tailsitter.vtol_thr_ftrans_max * _thrust_transition_start) *
 					     (float)hrt_elapsed_time(&_vtol_schedule.transition_start) / (_params_tailsitter.front_trans_dur * 1000000.0f));
 			_thrust_transition = math::constrain(_thrust_transition , _thrust_transition_start ,
 							     (1.0f + _params_tailsitter.vtol_thr_ftrans_max) * _thrust_transition_start);
@@ -436,7 +439,7 @@ void Tailsitter::update_transition_state()
 		/** create time dependant pitch angle set point  + 0.2 rad overlap over the switch value*/
 		if (_v_att_sp->pitch_body >= (PITCH_TRANSITION_FRONT_P2 - 0.2f)) {
 			_v_att_sp->pitch_body = PITCH_TRANSITION_FRONT_P1 -
-						(fabsf(PITCH_TRANSITION_FRONT_P2 - PITCH_TRANSITION_FRONT_P1) * (float)hrt_elapsed_time(
+						((PITCH_TRANSITION_FRONT_P2 - PITCH_TRANSITION_FRONT_P1) * (float)hrt_elapsed_time(
 							 &_vtol_schedule.transition_start) / (_params_tailsitter.front_trans_dur_p2 * 1000000.0f));
 
 			if (_v_att_sp->pitch_body <= (PITCH_TRANSITION_FRONT_P2 - 0.2f)) {
@@ -460,7 +463,7 @@ void Tailsitter::update_transition_state()
 		_mc_yaw_weight = 0.0f;
 #endif
 
-    } else if (_vtol_schedule.flight_mode == TRANSITION_BACK_P1 || _vtol_schedule.flight_mode == TRANSITION_BACK_P2) {
+    } else if (_vtol_schedule.flight_mode == TRANSITION_BACK_P1 || _vtol_schedule.flight_mode == TRANSITION_BACK_P2) { // free fall phase, if control pitch, may cause actuator output saturation
 
         if (!flag_idle_mc) {
             set_idle_mc();
@@ -469,9 +472,10 @@ void Tailsitter::update_transition_state()
 
         /** create time dependent pitch angle set point to pitch up at 0.5 radiant or about 30 degrees, as in fixed wing mode */
         if (hrt_elapsed_time(&_vtol_schedule.transition_start) <= (_params_tailsitter.back_trans_dur * 1000000.0f))
-          _v_att_sp->pitch_body = _pitch_transition_start + fabsf(0.5f - _pitch_transition_start) *
+          _v_att_sp->pitch_body = _pitch_transition_start + (-0.5f - _pitch_transition_start) *
                     (float)hrt_elapsed_time(&_vtol_schedule.transition_start) / (_params_tailsitter.back_trans_dur * 1000000.0f);
-// wrong        _v_att_sp->pitch_body = math::constrain(_v_att_sp->pitch_body , -2.0f , pitch_btrans_temp + 0.2f);
+        mavlink_log_info(&_mavlink_log_pub, "B_P1P2: pitch_st = %5.2f  pitch = %5.2f \n", (double)_pitch_transition_start, (double)_v_att_sp->pitch_body); //apple
+
 
         /** create time dependant roll angle*/
         if (_v_att_sp->roll_body > 0.01f) {
@@ -505,8 +509,9 @@ void Tailsitter::update_transition_state()
 //		float pitch_btrans_temp = (_params_tailsitter.back_trans_pitch <= 0.0f) ? PITCH_TRANSITION_BACK : (-_params_tailsitter.back_trans_pitch);
 
         if (hrt_elapsed_time(&_vtol_schedule.transition_start) <= (_params_tailsitter.back_trans_dur * 1000000.0f))
-            _v_att_sp->pitch_body = _pitch_transition_start + fabsf(-PITCH_TRANSITION_BACK - _pitch_transition_start) *
+            _v_att_sp->pitch_body = _pitch_transition_start + (-_params_tailsitter.back_trans_pitch - _pitch_transition_start) *
 					(float)hrt_elapsed_time(&_vtol_schedule.transition_start) / (_params_tailsitter.back_trans_dur * 1000000.0f);
+        mavlink_log_info(&_mavlink_log_pub, "B_P3: pitch = %5.2f \n", (double)_v_att_sp->pitch_body); //apple
 //		_v_att_sp->pitch_body = math::constrain(_v_att_sp->pitch_body , -2.0f , pitch_btrans_temp + 0.2f);
 
 		/** create time dependant roll angle*/		
