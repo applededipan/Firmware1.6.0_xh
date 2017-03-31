@@ -82,7 +82,11 @@ MissionBlock::MissionBlock(Navigator *navigator, const char *name) :
 	       _param_vtol_wv_takeoff(this, "VT_WV_TKO_EN", false),
 	       _param_vtol_wv_loiter(this, "VT_WV_LTR_EN", false),
 	       _param_force_vtol(this, "VT_NAV_FORCE_VT", false),
-	       _param_back_trans_dur(this, "VT_B_TRANS_DUR", false)
+	       _param_back_trans_dur(this, "VT_B_TRANS_DUR", false),
+	       _param_vt_freefall_slope(this, "VT_FREFALL_SLOPE", false),
+	       _param_vt_back_alt(this, "VT_BACK_ALT", false),
+	       _param_vt_back_dist(this, "VT_BACK_DIST", false),
+	       _param_vt_back_p1_dec_coef(this, "VT_BACK_P1_DCOF", false)
 {
 }
 
@@ -355,14 +359,17 @@ MissionBlock::is_mission_item_reached()
 //
 //			}
 
-
 			/* for vtol back transition calculate acceptance radius based on time and ground speed */
 			if (_mission_item.vtol_back_transition) {
 
 				float groundspeed = sqrtf(_navigator->get_global_position()->vel_n * _navigator->get_global_position()->vel_n +
 					_navigator->get_global_position()->vel_e * _navigator->get_global_position()->vel_e);
 
-                mission_acceptance_radius = groundspeed * _param_back_trans_dur.get();
+				float dist_phase1 = groundspeed * groundspeed * _param_vt_back_p1_dec_coef.get();
+				float dist_phase2 = (_navigator->get_global_position()->alt - _navigator->get_home_position()->alt -_param_vt_back_alt.get()) *_param_vt_freefall_slope.get();
+				float dist_phase3 = _param_vt_back_dist.get();
+                mission_acceptance_radius = dist_phase1 + dist_phase2 + dist_phase3;
+                mavlink_log_info(_navigator->get_mavlink_log_pub(), "apple: 1: %f  2: %f  3: %f \n", (double)dist_phase1, (double)dist_phase2, (double)dist_phase3);
                 if (mission_acceptance_radius < 10.0f) {
                     mission_acceptance_radius = 10.0f;
                 }

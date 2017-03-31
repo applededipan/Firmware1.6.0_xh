@@ -92,7 +92,7 @@
 #include <lib/geo/geo.h>
 #include <lib/tailsitter_recovery/tailsitter_recovery.h>
 #include <conversion/rotation.h>
-
+#include <systemlib/mavlink_log.h>
 /**
  * Multicopter attitude control app start / stop handling function
  *
@@ -137,7 +137,7 @@ private:
 
 	bool	_task_should_exit;		/**< if true, task_main() should exit */
 	int		_control_task;			/**< task handle */
-
+	orb_advert_t	_mavlink_log_pub;		/**< mavlink log advert */
 	int		_ctrl_state_sub;		/**< control state subscription */
 	int		_v_att_sp_sub;			/**< vehicle attitude setpoint subscription */
 	int		_v_rates_sp_sub;		/**< vehicle rates setpoint subscription */
@@ -391,7 +391,7 @@ MulticopterAttitudeControl::MulticopterAttitudeControl() :
 
 	_task_should_exit(false),
 	_control_task(-1),
-
+	_mavlink_log_pub(nullptr),
 	/* subscriptions */
 	_ctrl_state_sub(-1),
 	_v_att_sp_sub(-1),
@@ -1056,13 +1056,15 @@ MulticopterAttitudeControl::control_attitude_rates(float dt)
 
 			}
 		}
+	} else {
+	    _rates_int.zero();
 	}
 
 	/* explicitly limit the integrator state */
 	for (int i = AXIS_INDEX_ROLL; i < AXIS_COUNT; i++) {
 		_rates_int(i) = math::constrain(_rates_int(i), -_params.rate_int_lim(i), _params.rate_int_lim(i));
-
 	}
+
 }
 
 void

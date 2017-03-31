@@ -153,6 +153,10 @@ protected:
 	control::BlockParamInt _param_vtol_wv_loiter;
 	control::BlockParamInt _param_force_vtol;
 	control::BlockParamFloat _param_back_trans_dur;
+	control::BlockParamFloat _param_vt_freefall_slope;
+	control::BlockParamFloat _param_vt_back_alt;
+	control::BlockParamFloat _param_vt_back_dist;
+	control::BlockParamFloat _param_vt_back_p1_dec_coef;
 };
 
 #endif

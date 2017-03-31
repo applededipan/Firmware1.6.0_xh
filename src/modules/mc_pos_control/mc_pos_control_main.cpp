@@ -76,6 +76,7 @@
 #include <uORB/topics/vehicle_global_velocity_setpoint.h>
 #include <uORB/topics/vehicle_local_position_setpoint.h>
 #include <uORB/topics/vehicle_land_detected.h>
+#include <uORB/topics/vehicle_attitude.h>
 
 #include <float.h>
 #include <systemlib/mavlink_log.h>
@@ -85,6 +86,7 @@
 
 #include <controllib/blocks.hpp>
 #include <controllib/block/BlockParam.hpp>
+#include <vtol_att_control/vtol_type.h>
 
 #define TILT_COS_MAX	0.7f
 #define SIGMA			0.000001f
@@ -139,6 +141,7 @@ private:
 	int		_pos_sp_triplet_sub;		/**< position setpoint triplet */
 	int		_local_pos_sp_sub;		/**< offboard local position setpoint */
 	int		_global_vel_sp_sub;		/**< offboard global velocity setpoint */
+	int		_v_att_sub;				//vehicle attitude subscription
 
 	orb_advert_t	_att_sp_pub;			/**< attitude setpoint publication */
 	orb_advert_t	_local_pos_sp_pub;		/**< vehicle local position setpoint publication */
@@ -157,7 +160,7 @@ private:
 	struct position_setpoint_triplet_s		_pos_sp_triplet;	/**< vehicle global position setpoint triplet */
 	struct vehicle_local_position_setpoint_s	_local_pos_sp;		/**< vehicle local position setpoint */
 	struct vehicle_global_velocity_setpoint_s	_global_vel_sp;		/**< vehicle global velocity setpoint */
-
+	struct vehicle_attitude_s 					_v_att;		/**< vehicle attitude subscription */
 	control::BlockParamFloat _manual_thr_min;
 	control::BlockParamFloat _manual_thr_max;
 
@@ -204,6 +207,7 @@ private:
 		param_t roll_tc;
 		param_t yaw_auto_max; // apple 20170325
 		param_t weathervane_front;
+		param_t vtol_type;
 	}		_params_handles;		/**< handles for interesting parameters */
 
 	struct {
@@ -228,7 +232,8 @@ private:
 		float vel_max_up;
 		float vel_max_down;
 		float yaw_auto_max; // apple 20170325
-		int   weathervane_front;
+		uint32_t weathervane_front;
+		uint32_t vtol_type;
 		uint32_t alt_mode;
 
 		int opt_recover;
@@ -406,6 +411,7 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_local_pos_sub(-1),
 	_pos_sp_triplet_sub(-1),
 	_global_vel_sp_sub(-1),
+	_v_att_sub(-1),
 
 	/* publications */
 	_att_sp_pub(nullptr),
@@ -527,7 +533,7 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_params_handles.opt_recover = param_find("VT_OPT_RECOV_EN");
 	_params_handles.yaw_auto_max = param_find("MC_YAWAUTO_MAX"); // apple 20170325
 	_params_handles.weathervane_front = param_find("VT_WEATHERVANE_F");
-
+	_params_handles.vtol_type = param_find("VT_TYPE");
 	_params_handles.pitch_tc = param_find("MC_PITCH_TC");
 	_params_handles.roll_tc = param_find("MC_ROLL_TC");	
 	/* fetch initial parameter values */
@@ -589,7 +595,7 @@ MulticopterPositionControl::parameters_update(bool force)
 		_params.tilt_max_land = math::radians(_params.tilt_max_land);
 		param_get(_params_handles.yaw_auto_max, &_params.yaw_auto_max); // apple 20170325
 		param_get(_params_handles.weathervane_front, &_params.weathervane_front);
-
+		param_get(_params_handles.vtol_type, &_params.vtol_type);
 		float v;
 		uint32_t v_i;
 		float pitch_tc, roll_tc,tc;
@@ -749,6 +755,12 @@ MulticopterPositionControl::poll_subscriptions()
 
 	if (updated) {
 		orb_copy(ORB_ID(vehicle_attitude_setpoint), _att_sp_sub, &_att_sp);
+	}
+
+	orb_check(_v_att_sub, &updated);
+
+	if (updated) {
+		orb_copy(ORB_ID(vehicle_attitude), _v_att_sub, &_v_att);
 	}
 
 	orb_check(_control_mode_sub, &updated);
@@ -1096,7 +1108,6 @@ MulticopterPositionControl::control_non_manual(float dt)
 	/* weather-vane mode for vtol: disable yaw control */
 	if (_pos_sp_triplet.current.disable_mc_yaw_control == true) {
 //		_att_sp.disable_mc_yaw_control = true;
-
 	    if (_params.weathervane_front == 0) {
 	        // active weathervane by turning sideway from the wind -- MAO 2017/3/25
 	        float roll_sign = 1.0f;
@@ -2080,6 +2091,15 @@ MulticopterPositionControl::control_position(float dt)
 
 			thrust_body_z = thr_max;
 		}
+		// just for test 20170331
+	    static float delta_t = 0.0f;
+	    delta_t += dt;
+	    if (delta_t > 0.5f) { // log info twice a second
+	        delta_t = 0.0f;
+			mavlink_log_info(&_mavlink_log_pub, "thr_body = %3.2f thr_body_z = %3.3f \n", (double)thrust_sp(2), (double)thrust_body_z); //MAO
+			mavlink_log_info(&_mavlink_log_pub, "satu_xy = %d satu_z = %d \n", saturation_xy, saturation_z); //MAO
+			mavlink_log_info(&_mavlink_log_pub, "thr_int = %3.2f  %3.2f  %3.2f \n", (double)_thrust_int(0), (double)_thrust_int(1), (double)_thrust_int(2)); //MAO
+	    }
 
 		_att_sp.thrust = math::max(thrust_body_z, thr_min);
 
@@ -2089,7 +2109,12 @@ MulticopterPositionControl::control_position(float dt)
 			_thrust_int(1) += vel_err(1) * _params.vel_i(1) * dt;
 		}
 
-		if (_control_mode.flag_control_climb_rate_enabled && !saturation_z) {
+	    matrix::Eulerf eule = matrix::Quatf(_v_att.q);
+		if ((_params.vtol_type == vtol_type::TAILSITTER) && _vehicle_status.is_vtol && _vehicle_status.is_rotary_wing
+		    && fabsf(_att_sp.pitch_body - eule.theta()) > 0.15f) { // MAO - increase tailsitter throttle for large pitch control error
+		    _thrust_int(2) -= (fabsf(_att_sp.pitch_body - eule.theta()) - 0.15f) * dt;
+
+		} else if (_control_mode.flag_control_climb_rate_enabled && !saturation_z) {
 			_thrust_int(2) += vel_err(2) * _params.vel_i(2) * dt;
 		}
 
@@ -2295,6 +2320,7 @@ MulticopterPositionControl::task_main()
 	_pos_sp_triplet_sub = orb_subscribe(ORB_ID(position_setpoint_triplet));
 	_local_pos_sp_sub = orb_subscribe(ORB_ID(vehicle_local_position_setpoint));
 	_global_vel_sp_sub = orb_subscribe(ORB_ID(vehicle_global_velocity_setpoint));
+	_v_att_sub = orb_subscribe(ORB_ID(vehicle_attitude));
 
 	parameters_update(true);
 
