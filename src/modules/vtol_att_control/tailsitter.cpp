@@ -463,7 +463,7 @@ void Tailsitter::update_transition_state()
 		_mc_yaw_weight = 0.0f;
 #endif
 
-    } else if (_vtol_schedule.flight_mode == TRANSITION_BACK_P1 || _vtol_schedule.flight_mode == TRANSITION_BACK_P2) { // free fall phase, if control pitch, may cause actuator output saturation
+    } else if (_vtol_schedule.flight_mode == TRANSITION_BACK_P1 || _vtol_schedule.flight_mode == TRANSITION_BACK_P2) { // free fall phase
 
         if (!flag_idle_mc) {
             set_idle_mc();
@@ -481,6 +481,7 @@ void Tailsitter::update_transition_state()
         } else if (_v_att_sp->pitch_body > 0.71f) {
             _v_att_sp->pitch_body -= 0.25f * dt;
         }
+        mavlink_log_info(&_mavlink_log_pub, "P2:pitch_sp = %5.2f \n", (double)_v_att_sp->pitch_body); //apple
 
         /** create time dependant roll angle*/
         if (_v_att_sp->roll_body > 0.01f) {

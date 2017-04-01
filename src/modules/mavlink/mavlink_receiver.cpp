@@ -1455,6 +1455,7 @@ MavlinkReceiver::handle_message_rc_channels_override(mavlink_message_t *msg)
 void
 MavlinkReceiver::handle_message_rc_channels(mavlink_message_t *msg)//sujun
 {
+	return; // not use this now
 	mavlink_rc_channels_t man;
 	mavlink_msg_rc_channels_decode(msg, &man);
 

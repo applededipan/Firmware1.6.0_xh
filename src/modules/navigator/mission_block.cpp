@@ -362,14 +362,26 @@ MissionBlock::is_mission_item_reached()
 			/* for vtol back transition calculate acceptance radius based on time and ground speed */
 			if (_mission_item.vtol_back_transition) {
 
-				float groundspeed = sqrtf(_navigator->get_global_position()->vel_n * _navigator->get_global_position()->vel_n +
+
+				static float groundspeed = sqrtf(_navigator->get_global_position()->vel_n * _navigator->get_global_position()->vel_n +
 					_navigator->get_global_position()->vel_e * _navigator->get_global_position()->vel_e);
 
-				float dist_phase1 = groundspeed * groundspeed * _param_vt_back_p1_dec_coef.get();
-				float dist_phase2 = (_navigator->get_global_position()->alt - _navigator->get_home_position()->alt -_param_vt_back_alt.get()) *_param_vt_freefall_slope.get();
-				float dist_phase3 = _param_vt_back_dist.get();
+				static float dist_phase1 = groundspeed * groundspeed * _param_vt_back_p1_dec_coef.get();
+				static float dist_phase2 = (_navigator->get_global_position()->alt - _navigator->get_home_position()->alt -_param_vt_back_alt.get()) *_param_vt_freefall_slope.get();
+				static float dist_phase3 = _param_vt_back_dist.get();
+
                 mission_acceptance_radius = dist_phase1 + dist_phase2 + dist_phase3;
-                mavlink_log_info(_navigator->get_mavlink_log_pub(), "apple: 1: %f  2: %f  3: %f \n", (double)dist_phase1, (double)dist_phase2, (double)dist_phase3);
+
+                { // just for debug apple 20170401
+                	static float dist_phase1_last = 0.0f;
+                	static float dist_phase2_last = 0.0f;
+                	if (fabsf(dist_phase1_last - dist_phase1) > 5.0f || fabsf(dist_phase2_last - dist_phase2) > 5.0f) {
+                		dist_phase1_last = dist_phase1;
+                		dist_phase2_last = dist_phase2;
+                		mavlink_log_info(_navigator->get_mavlink_log_pub(), "apple: 1: %f  2: %f \n", (double)dist_phase1, (double)dist_phase2);
+                	}
+                }
+
                 if (mission_acceptance_radius < 10.0f) {
                     mission_acceptance_radius = 10.0f;
                 }

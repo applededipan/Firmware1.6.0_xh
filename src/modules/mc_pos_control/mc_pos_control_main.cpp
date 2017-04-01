@@ -1114,21 +1114,22 @@ MulticopterPositionControl::control_non_manual(float dt)
 	        if (_att_sp.roll_body < 0.0f) {
 	            roll_sign = -1.0f;
 	        }
+			
 	        if (_att_sp.pitch_body > 0.15f) {
-	            _att_sp.yaw_sp_move_rate = (_att_sp.pitch_body - 0.15f) * roll_sign;
+	            _att_sp.yaw_sp_move_rate = (_att_sp.pitch_body /* - 0.15f */) * roll_sign;
 	        } else if (_att_sp.pitch_body < -0.15f) {
-	            _att_sp.yaw_sp_move_rate = (_att_sp.pitch_body + 0.15f) * roll_sign;
+	            _att_sp.yaw_sp_move_rate = (_att_sp.pitch_body /* + 0.15f */) * roll_sign;
 	        } else {
 	            _att_sp.yaw_sp_move_rate = 0.0f;
 	        }
         } else {
 	        // active weathervane by turning front toward the wind -- MAO 2017/3/28
 	        if (_att_sp.roll_body > 0.15f) {
-	            _att_sp.yaw_sp_move_rate = (_att_sp.roll_body - 0.15f);
+	            _att_sp.yaw_sp_move_rate = (_att_sp.roll_body /* - 0.15f */);
 	        } else if (_att_sp.roll_body < -0.15f) {
-	            _att_sp.yaw_sp_move_rate = (_att_sp.roll_body + 0.15f);
+	            _att_sp.yaw_sp_move_rate = (_att_sp.roll_body /* + 0.15f */);
 	        } else if (_att_sp.pitch_body > 0.15f) {
-	            _att_sp.yaw_sp_move_rate = _att_sp.pitch_body - 0.15f;
+	            _att_sp.yaw_sp_move_rate = _att_sp.pitch_body /* - 0.15f */;
 	        } else {
 	            _att_sp.yaw_sp_move_rate = 0.0f;
 	        }
@@ -2003,8 +2004,8 @@ MulticopterPositionControl::control_position(float dt)
 		}
 
 		/* limit min lift */
-		if (-thrust_sp(2) < thr_min) {
-			thrust_sp(2) = -thr_min;
+		if (-thrust_sp(2) < thr_min - 0.15f) { // MAO - should limit thrust_body_z by thr_min rather than thrust_sp(2)
+			thrust_sp(2) = -thr_min + 0.15f;
 			/* Don't freeze altitude integral if it wants to throttle up */
 			saturation_z = vel_err(2) > 0.0f ? true : saturation_z;
 		}
@@ -2091,16 +2092,19 @@ MulticopterPositionControl::control_position(float dt)
 
 			thrust_body_z = thr_max;
 		}
+	    matrix::Eulerf eule = matrix::Quatf(_v_att.q);
 		// just for test 20170331
-	    static float delta_t = 0.0f;
+/*	    static float delta_t = 0.0f;
 	    delta_t += dt;
-	    if (delta_t > 0.5f) { // log info twice a second
+	    if (delta_t > 3.0f) { // log info every three seconds
 	        delta_t = 0.0f;
+			mavlink_log_info(&_mavlink_log_pub, "pitch_sp = %3.2f pitch = %3.3f \n", (double)_att_sp.pitch_body, (double)eule.theta()); //MAO
+			mavlink_log_info(&_mavlink_log_pub, "vel_sp_z = %3.2f vel_z = %3.3f \n", (double)_vel_sp(2), (double)_vel(2)); //MAO
 			mavlink_log_info(&_mavlink_log_pub, "thr_body = %3.2f thr_body_z = %3.3f \n", (double)thrust_sp(2), (double)thrust_body_z); //MAO
 			mavlink_log_info(&_mavlink_log_pub, "satu_xy = %d satu_z = %d \n", saturation_xy, saturation_z); //MAO
-			mavlink_log_info(&_mavlink_log_pub, "thr_int = %3.2f  %3.2f  %3.2f \n", (double)_thrust_int(0), (double)_thrust_int(1), (double)_thrust_int(2)); //MAO
+			mavlink_log_info(&_mavlink_log_pub, "thr_int = %3.2f  %3.2f  %3.2f \n\n", (double)_thrust_int(0), (double)_thrust_int(1), (double)_thrust_int(2)); //MAO
 	    }
-
+*/
 		_att_sp.thrust = math::max(thrust_body_z, thr_min);
 
 		/* update integrals */
@@ -2109,10 +2113,11 @@ MulticopterPositionControl::control_position(float dt)
 			_thrust_int(1) += vel_err(1) * _params.vel_i(1) * dt;
 		}
 
-	    matrix::Eulerf eule = matrix::Quatf(_v_att.q);
 		if ((_params.vtol_type == vtol_type::TAILSITTER) && _vehicle_status.is_vtol && _vehicle_status.is_rotary_wing
-		    && fabsf(_att_sp.pitch_body - eule.theta()) > 0.15f) { // MAO - increase tailsitter throttle for large pitch control error
-		    _thrust_int(2) -= (fabsf(_att_sp.pitch_body - eule.theta()) - 0.15f) * dt;
+			// MAO - increase tailsitter throttle for large pitch control error
+		    && fabsf(_att_sp.pitch_body - eule.theta()) > 0.5f
+		    && fabsf(eule.theta()) > 0.5f) {
+		    _thrust_int(2) -= (fabsf(_att_sp.pitch_body - eule.theta()) - 0.5f) * dt;
 
 		} else if (_control_mode.flag_control_climb_rate_enabled && !saturation_z) {
 			_thrust_int(2) += vel_err(2) * _params.vel_i(2) * dt;
